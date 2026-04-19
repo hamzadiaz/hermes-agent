@@ -94,6 +94,16 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "copilot-acp": [
         "copilot-acp",
     ],
+    "claude-code": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5",
+    ],
+    "litert-lm": [
+        "gemma-4-e2b-real",
+        "gemma-4-e4b-real",
+    ],
     "copilot": [
         "gpt-5.4",
         "gpt-5.4-mini",
@@ -248,6 +258,8 @@ _PROVIDER_LABELS = {
     "openrouter": "OpenRouter",
     "openai-codex": "OpenAI Codex",
     "copilot-acp": "GitHub Copilot ACP",
+    "claude-code": "Claude Code",
+    "litert-lm": "LiteRT-LM",
     "nous": "Nous Portal",
     "copilot": "GitHub Copilot",
     "zai": "Z.AI / GLM",
@@ -281,7 +293,10 @@ _PROVIDER_ALIASES = {
     "minimax-china": "minimax-cn",
     "minimax_cn": "minimax-cn",
     "claude": "anthropic",
-    "claude-code": "anthropic",
+    "claude-code-cli": "claude-code",
+    "litert": "litert-lm",
+    "litertlm": "litert-lm",
+    "gemma-local": "litert-lm",
     "deep-seek": "deepseek",
     "opencode": "opencode-zen",
     "zen": "opencode-zen",
@@ -332,7 +347,7 @@ def list_available_providers() -> list[dict[str, str]]:
     """
     # Canonical providers in display order
     _PROVIDER_ORDER = [
-        "openrouter", "nous", "openai-codex", "copilot", "copilot-acp",
+        "openrouter", "nous", "openai-codex", "copilot", "copilot-acp", "claude-code", "litert-lm",
         "huggingface", "zai", "kimi-coding", "minimax", "minimax-cn", "kilocode", "anthropic", "alibaba",
         "opencode-zen", "opencode-go",
         "ai-gateway", "deepseek", "custom",
@@ -818,8 +833,11 @@ _COPILOT_MODEL_ALIASES = {
     "openai/o1-preview": "gpt-5.2",
     "openai/o3": "gpt-5.3-codex",
     "openai/o3-mini": "gpt-5-mini",
-    "openai/o4-mini": "gpt-5-mini",
-    "anthropic/claude-opus-4.6": "claude-opus-4.6",
+}
+
+_PROVIDER_DISPLAY_NAMES: dict[str, str] = {
+    "anthropic/claude-opus-4.7":   "Claude Opus 4.7",
+    "anthropic/claude-opus-4.6":   "Claude Opus 4.6",
     "anthropic/claude-sonnet-4.6": "claude-sonnet-4.6",
     "anthropic/claude-sonnet-4.5": "claude-sonnet-4.5",
     "anthropic/claude-haiku-4.5": "claude-haiku-4.5",

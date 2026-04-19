@@ -312,6 +312,51 @@ For example, a topic with `skill: arxiv` will have the arxiv skill pre-loaded wh
 Topics created outside of the config (e.g., by manually calling the Telegram API) are discovered automatically when a `forum_topic_created` service message arrives. You can also add topics to the config while the gateway is running — they'll be picked up on the next cache miss.
 :::
 
+## Supergroup Topic Bindings (Fleet / Multi-Agent Ops)
+
+For fleet-style operations, use a private supergroup with **Topics enabled** and bind each topic thread to a skill.
+
+Configure `platforms.telegram.extra.topic_bindings` in `~/.hermes/config.yaml`:
+
+```yaml
+platforms:
+  telegram:
+    extra:
+      topic_bindings:
+      - chat_id: -1001234567890
+        topics:
+        - thread_id: 11
+          name: 00-command-center
+          skill: fleet-commander-api
+          agent: commander
+        - thread_id: 12
+          name: 03-content-pipeline
+          skill: social-media-scheduler
+          agent: content
+        - thread_id: 13
+          name: 04-x-publishing
+          skill: social-media-agent
+          agent: publisher
+        - thread_id: 14
+          name: 06-incidents
+          skill: systematic-debugging
+          agent: reliability
+```
+
+How it works:
+
+1. Incoming topic messages include `message_thread_id`
+2. Hermes resolves `{chat_id, thread_id}` against `topic_bindings`
+3. `chat_topic` is set for session context, and `skill` auto-loads on new sessions
+4. Each topic keeps isolated history via the gateway thread-aware session key
+
+Notes:
+
+- `topic_bindings` works for supergroups/channels with thread IDs
+- `thread_id` is required for deterministic routing
+- Additional metadata like `agent` is preserved in config for your own orchestration layer
+- You can edit `topic_bindings` while the gateway is running; Hermes hot-reloads on lookup miss
+
 ## Recent Bot API Features
 
 - **Bot API 9.4 (Feb 2026):** Private Chat Topics — bots can create forum topics in 1-on-1 DM chats via `createForumTopic`. See [Private Chat Topics](#private-chat-topics-bot-api-94) above.

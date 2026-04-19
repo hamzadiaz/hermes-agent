@@ -69,6 +69,8 @@ DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS = 1     # poll at most every 1s
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 DEFAULT_GITHUB_MODELS_BASE_URL = "https://api.githubcopilot.com"
 DEFAULT_COPILOT_ACP_BASE_URL = "acp://copilot"
+DEFAULT_CLAUDE_CODE_CLI_BASE_URL = "cli://claude-code"
+DEFAULT_LITERT_LM_CLI_BASE_URL = "cli://litert-lm"
 CODEX_OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_OAUTH_TOKEN_URL = "https://auth.openai.com/oauth/token"
 CODEX_ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120
@@ -124,6 +126,20 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         auth_type="external_process",
         inference_base_url=DEFAULT_COPILOT_ACP_BASE_URL,
         base_url_env_var="COPILOT_ACP_BASE_URL",
+    ),
+    "claude-code": ProviderConfig(
+        id="claude-code",
+        name="Claude Code",
+        auth_type="external_process",
+        inference_base_url=DEFAULT_CLAUDE_CODE_CLI_BASE_URL,
+        base_url_env_var="CLAUDE_CODE_BASE_URL",
+    ),
+    "litert-lm": ProviderConfig(
+        id="litert-lm",
+        name="LiteRT-LM",
+        auth_type="external_process",
+        inference_base_url=DEFAULT_LITERT_LM_CLI_BASE_URL,
+        base_url_env_var="LITERT_LM_BASE_URL",
     ),
     "zai": ProviderConfig(
         id="zai",
@@ -730,7 +746,7 @@ def resolve_provider(
         "glm": "zai", "z-ai": "zai", "z.ai": "zai", "zhipu": "zai",
         "kimi": "kimi-coding", "moonshot": "kimi-coding",
         "minimax-china": "minimax-cn", "minimax_cn": "minimax-cn",
-        "claude": "anthropic", "claude-code": "anthropic",
+        "claude": "anthropic", "claude-code-cli": "claude-code",
         "github": "copilot", "github-copilot": "copilot",
         "github-models": "copilot", "github-model": "copilot",
         "github-copilot-acp": "copilot-acp", "copilot-acp-agent": "copilot-acp",
@@ -1119,14 +1135,16 @@ def resolve_codex_runtime_credentials(
         os.getenv("HERMES_CODEX_BASE_URL", "").strip().rstrip("/")
         or DEFAULT_CODEX_BASE_URL
     )
+    account_id = str(tokens.get("account_id", "") or "").strip()
 
     return {
         "provider": "openai-codex",
         "base_url": base_url,
         "api_key": access_token,
+        "account_id": account_id,
         "source": "hermes-auth-store",
         "last_refresh": data.get("last_refresh"),
-        "auth_mode": "chatgpt",
+        "auth_mode": "oauth",
     }
 
 
@@ -1907,27 +1925,48 @@ def get_external_process_provider_status(provider_id: str) -> Dict[str, Any]:
     if not pconfig or pconfig.auth_type != "external_process":
         return {"configured": False}
 
-    command = (
-        os.getenv("HERMES_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
-        or "copilot"
-    )
-    raw_args = os.getenv("HERMES_COPILOT_ACP_ARGS", "").strip()
-    args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
+    if provider_id == "copilot-acp":
+        command = (
+            os.getenv("HERMES_COPILOT_ACP_COMMAND", "").strip()
+            or os.getenv("COPILOT_CLI_PATH", "").strip()
+            or "copilot"
+        )
+        raw_args = os.getenv("HERMES_COPILOT_ACP_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
+        remote_ok = lambda url: url.startswith("acp+tcp://")
+    elif provider_id == "claude-code":
+        command = (
+            os.getenv("HERMES_CLAUDE_CODE_COMMAND", "").strip()
+            or os.getenv("CLAUDE_CLI_PATH", "").strip()
+            or "claude"
+        )
+        raw_args = os.getenv("HERMES_CLAUDE_CODE_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else []
+        remote_ok = lambda url: False
+    elif provider_id == "litert-lm":
+        command = (
+            os.getenv("HERMES_LITERT_LM_COMMAND", "").strip()
+            or "litert-lm"
+        )
+        raw_args = os.getenv("HERMES_LITERT_LM_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else []
+        remote_ok = lambda url: False
+    else:
+        return {"configured": False}
     base_url = os.getenv(pconfig.base_url_env_var, "").strip() if pconfig.base_url_env_var else ""
     if not base_url:
         base_url = pconfig.inference_base_url
 
     resolved_command = shutil.which(command) if command else None
     return {
-        "configured": bool(resolved_command or base_url.startswith("acp+tcp://")),
+        "configured": bool(resolved_command or remote_ok(base_url)),
         "provider": provider_id,
         "name": pconfig.name,
         "command": command,
         "args": args,
         "resolved_command": resolved_command,
         "base_url": base_url,
-        "logged_in": bool(resolved_command or base_url.startswith("acp+tcp://")),
+        "logged_in": bool(resolved_command or remote_ok(base_url)),
     }
 
 
@@ -1938,7 +1977,7 @@ def get_auth_status(provider_id: Optional[str] = None) -> Dict[str, Any]:
         return get_nous_auth_status()
     if target == "openai-codex":
         return get_codex_auth_status()
-    if target == "copilot-acp":
+    if target in {"copilot-acp", "claude-code", "litert-lm"}:
         return get_external_process_provider_status(target)
     # API-key providers
     pconfig = PROVIDER_REGISTRY.get(target)
@@ -1997,25 +2036,67 @@ def resolve_external_process_provider_credentials(provider_id: str) -> Dict[str,
     if not base_url:
         base_url = pconfig.inference_base_url
 
-    command = (
-        os.getenv("HERMES_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
-        or "copilot"
-    )
-    raw_args = os.getenv("HERMES_COPILOT_ACP_ARGS", "").strip()
-    args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
-    resolved_command = shutil.which(command) if command else None
-    if not resolved_command and not base_url.startswith("acp+tcp://"):
-        raise AuthError(
+    if provider_id == "copilot-acp":
+        command = (
+            os.getenv("HERMES_COPILOT_ACP_COMMAND", "").strip()
+            or os.getenv("COPILOT_CLI_PATH", "").strip()
+            or "copilot"
+        )
+        raw_args = os.getenv("HERMES_COPILOT_ACP_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else ["--acp", "--stdio"]
+        marker_ok = base_url.startswith("acp+tcp://")
+        missing_message = (
             f"Could not find the Copilot CLI command '{command}'. "
-            "Install GitHub Copilot CLI or set HERMES_COPILOT_ACP_COMMAND/COPILOT_CLI_PATH.",
+            "Install GitHub Copilot CLI or set HERMES_COPILOT_ACP_COMMAND/COPILOT_CLI_PATH."
+        )
+        missing_code = "missing_copilot_cli"
+        api_key = "copilot-acp"
+    elif provider_id == "claude-code":
+        command = (
+            os.getenv("HERMES_CLAUDE_CODE_COMMAND", "").strip()
+            or os.getenv("CLAUDE_CLI_PATH", "").strip()
+            or "claude"
+        )
+        raw_args = os.getenv("HERMES_CLAUDE_CODE_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else []
+        marker_ok = False
+        missing_message = (
+            f"Could not find the Claude Code CLI command '{command}'. "
+            "Install Claude Code or set HERMES_CLAUDE_CODE_COMMAND/CLAUDE_CLI_PATH."
+        )
+        missing_code = "missing_claude_code_cli"
+        api_key = "claude-code"
+    elif provider_id == "litert-lm":
+        command = (
+            os.getenv("HERMES_LITERT_LM_COMMAND", "").strip()
+            or "litert-lm"
+        )
+        raw_args = os.getenv("HERMES_LITERT_LM_ARGS", "").strip()
+        args = shlex.split(raw_args) if raw_args else []
+        marker_ok = False
+        missing_message = (
+            f"Could not find the LiteRT-LM command '{command}'. "
+            "Install litert-lm or set HERMES_LITERT_LM_COMMAND."
+        )
+        missing_code = "missing_litert_lm_cli"
+        api_key = "litert-lm"
+    else:
+        raise AuthError(
+            f"Provider '{provider_id}' is not a supported external-process provider.",
             provider=provider_id,
-            code="missing_copilot_cli",
+            code="invalid_provider",
+        )
+    resolved_command = shutil.which(command) if command else None
+    if not resolved_command and not marker_ok:
+        raise AuthError(
+            missing_message,
+            provider=provider_id,
+            code=missing_code,
         )
 
     return {
         "provider": provider_id,
-        "api_key": "copilot-acp",
+        "api_key": api_key,
         "base_url": base_url.rstrip("/"),
         "command": resolved_command or command,
         "args": args,

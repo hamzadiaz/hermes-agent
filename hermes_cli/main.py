@@ -912,6 +912,8 @@ def select_provider_and_model(args=None):
         "nous": "Nous Portal",
         "openai-codex": "OpenAI Codex",
         "copilot-acp": "GitHub Copilot ACP",
+        "claude-code": "Claude Code",
+        "litert-lm": "LiteRT-LM",
         "copilot": "GitHub Copilot",
         "anthropic": "Anthropic",
         "zai": "Z.AI / GLM",
@@ -939,8 +941,10 @@ def select_provider_and_model(args=None):
         ("nous", "Nous Portal (Nous Research subscription)"),
         ("openai-codex", "OpenAI Codex"),
         ("copilot-acp", "GitHub Copilot ACP (spawns `copilot --acp --stdio`)"),
+        ("claude-code", "Claude Code (first-party local CLI, no third-party Anthropic API)"),
+        ("litert-lm", "LiteRT-LM (local Gemma models via Metal on this Mac)"),
         ("copilot", "GitHub Copilot (uses GITHUB_TOKEN or gh auth token)"),
-        ("anthropic", "Anthropic (Claude models — API key or Claude Code)"),
+        ("anthropic", "Anthropic (Claude models — API key or third-party OAuth)"),
         ("zai", "Z.AI / GLM (Zhipu AI direct API)"),
         ("kimi-coding", "Kimi / Moonshot (Moonshot AI direct API)"),
         ("minimax", "MiniMax (global direct API)"),
@@ -1011,6 +1015,10 @@ def select_provider_and_model(args=None):
         _model_flow_openai_codex(config, current_model)
     elif selected_provider == "copilot-acp":
         _model_flow_copilot_acp(config, current_model)
+    elif selected_provider == "claude-code":
+        _model_flow_claude_code(config, current_model)
+    elif selected_provider == "litert-lm":
+        _model_flow_litert_lm(config, current_model)
     elif selected_provider == "copilot":
         _model_flow_copilot(config, current_model)
     elif selected_provider == "custom":
@@ -1650,6 +1658,16 @@ _PROVIDER_MODELS = {
     "copilot-acp": [
         "copilot-acp",
     ],
+    "claude-code": [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5",
+    ],
+    "litert-lm": [
+        "gemma-4-e2b-real",
+        "gemma-4-e4b-real",
+    ],
     "copilot": [
         "gpt-5.4",
         "gpt-5.4-mini",
@@ -2071,6 +2089,134 @@ def _model_flow_copilot_acp(config, current_model=""):
         catalog=catalog,
         api_key=catalog_api_key,
     ) or selected
+    _save_model_choice(selected)
+
+    cfg = load_config()
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        model = {"default": model} if model else {}
+        cfg["model"] = model
+    model["provider"] = provider_id
+    model["base_url"] = effective_base
+    model["api_mode"] = "chat_completions"
+    save_config(cfg)
+    deactivate_provider()
+
+    print(f"Default model set to: {selected} (via {pconfig.name})")
+
+
+def _model_flow_claude_code(config, current_model=""):
+    """Claude Code first-party flow using the local claude CLI."""
+    from hermes_cli.auth import (
+        PROVIDER_REGISTRY,
+        _prompt_model_selection,
+        _save_model_choice,
+        deactivate_provider,
+        get_external_process_provider_status,
+        resolve_external_process_provider_credentials,
+    )
+    from hermes_cli.config import load_config, save_config
+
+    del config
+
+    provider_id = "claude-code"
+    pconfig = PROVIDER_REGISTRY[provider_id]
+
+    status = get_external_process_provider_status(provider_id)
+    resolved_command = status.get("resolved_command") or status.get("command") or "claude"
+    effective_base = status.get("base_url") or pconfig.inference_base_url
+
+    print("  Claude Code delegates Hermes turns to the local `claude -p` CLI.")
+    print("  This uses Claude Code's first-party session instead of Anthropic's third-party API.")
+    print("  Hermes starts a one-shot Claude CLI subprocess per request.")
+    print(f"  Command: {resolved_command}")
+    print(f"  Backend marker: {effective_base}")
+    print()
+
+    try:
+        resolve_external_process_provider_credentials(provider_id)
+    except Exception as exc:
+        print(f"  ⚠ {exc}")
+        print("  Set HERMES_CLAUDE_CODE_COMMAND or CLAUDE_CLI_PATH if Claude Code is installed elsewhere.")
+        return
+
+    model_list = _PROVIDER_MODELS.get("claude-code", [])
+    if model_list:
+        selected = _prompt_model_selection(model_list, current_model=current_model)
+    else:
+        try:
+            selected = input("Model name (e.g., claude-sonnet-4-6): ").strip()
+        except (KeyboardInterrupt, EOFError):
+            selected = None
+
+    if not selected:
+        print("No change.")
+        return
+
+    _save_model_choice(selected)
+
+    cfg = load_config()
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        model = {"default": model} if model else {}
+        cfg["model"] = model
+    model["provider"] = provider_id
+    model["base_url"] = effective_base
+    model["api_mode"] = "chat_completions"
+    save_config(cfg)
+    deactivate_provider()
+
+    print(f"Default model set to: {selected} (via {pconfig.name})")
+
+
+def _model_flow_litert_lm(config, current_model=""):
+    """LiteRT-LM local Gemma flow using the local litert-lm CLI."""
+    from hermes_cli.auth import (
+        PROVIDER_REGISTRY,
+        _prompt_model_selection,
+        _save_model_choice,
+        deactivate_provider,
+        get_external_process_provider_status,
+        resolve_external_process_provider_credentials,
+    )
+    from hermes_cli.config import load_config, save_config
+
+    del config
+
+    provider_id = "litert-lm"
+    pconfig = PROVIDER_REGISTRY[provider_id]
+
+    status = get_external_process_provider_status(provider_id)
+    resolved_command = status.get("resolved_command") or status.get("command") or "litert-lm"
+    effective_base = status.get("base_url") or pconfig.inference_base_url
+
+    print("  LiteRT-LM runs Gemma models locally through the `litert-lm run` CLI.")
+    print("  Hermes delegates turns to the local runtime instead of a remote API provider.")
+    print("  This uses the verified Metal-backed Gemma imports on this Mac.")
+    print(f"  Command: {resolved_command}")
+    print(f"  Backend marker: {effective_base}")
+    print()
+
+    try:
+        resolve_external_process_provider_credentials(provider_id)
+    except Exception as exc:
+        print(f"  ⚠ {exc}")
+        print("  Set HERMES_LITERT_LM_COMMAND if LiteRT-LM is installed outside PATH.")
+        return
+
+    model_list = _PROVIDER_MODELS.get("litert-lm", [])
+    if model_list:
+        selected = _prompt_model_selection(model_list, current_model=current_model)
+    else:
+        try:
+            selected = input("Model name (e.g., gemma-4-e2b-real): ").strip()
+        except (KeyboardInterrupt, EOFError):
+            selected = None
+
+    if not selected:
+        print("No change.")
+        return
+
     _save_model_choice(selected)
 
     cfg = load_config()
@@ -3875,7 +4021,7 @@ For more help on a command:
     )
     chat_parser.add_argument(
         "--provider",
-        choices=["auto", "openrouter", "nous", "openai-codex", "copilot-acp", "copilot", "anthropic", "huggingface", "zai", "kimi-coding", "minimax", "minimax-cn", "kilocode"],
+        choices=["auto", "openrouter", "nous", "openai-codex", "copilot-acp", "claude-code", "litert-lm", "copilot", "anthropic", "huggingface", "zai", "kimi-coding", "minimax", "minimax-cn", "kilocode"],
         default=None,
         help="Inference provider (default: auto)"
     )

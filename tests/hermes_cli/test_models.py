@@ -78,10 +78,12 @@ class TestFindOpenrouterSlug:
 
 class TestDetectProviderForModel:
     def test_anthropic_model_detected(self):
-        """claude-opus-4-6 should resolve to anthropic provider."""
+        """claude-opus-4-6 should resolve to an anthropic-family provider."""
         result = detect_provider_for_model("claude-opus-4-6", "openai-codex")
         assert result is not None
-        assert result[0] == "anthropic"
+        # On machines with Claude Code OAuth, the provider is "claude-code";
+        # on machines with a raw ANTHROPIC_API_KEY, it is "anthropic".
+        assert result[0] in ("anthropic", "claude-code")
 
     def test_deepseek_model_detected(self):
         """deepseek-chat should resolve to deepseek provider."""

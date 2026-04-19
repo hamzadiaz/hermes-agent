@@ -122,10 +122,16 @@ def _resolve_runtime_from_pool_entry(
     model_cfg = model_cfg or _get_model_config()
     base_url = (getattr(entry, "runtime_base_url", None) or getattr(entry, "base_url", None) or "").rstrip("/")
     api_key = getattr(entry, "runtime_api_key", None) or getattr(entry, "access_token", "")
+    account_id = ""
     api_mode = "chat_completions"
     if provider == "openai-codex":
         api_mode = "codex_responses"
         base_url = base_url or DEFAULT_CODEX_BASE_URL
+        try:
+            _codex_creds = resolve_codex_runtime_credentials()
+            account_id = _codex_creds.get("account_id", "")
+        except Exception:
+            pass
     elif provider == "anthropic":
         api_mode = "anthropic_messages"
         cfg_provider = str(model_cfg.get("provider") or "").strip().lower()
@@ -151,6 +157,7 @@ def _resolve_runtime_from_pool_entry(
         "api_mode": api_mode,
         "base_url": base_url,
         "api_key": api_key,
+        "account_id": account_id,
         "source": getattr(entry, "source", "pool"),
         "credential_pool": pool,
         "requested_provider": requested_provider,
@@ -429,10 +436,12 @@ def _resolve_explicit_runtime(
     if provider == "openai-codex":
         base_url = explicit_base_url or DEFAULT_CODEX_BASE_URL
         api_key = explicit_api_key
+        account_id = ""
         last_refresh = None
         if not api_key:
             creds = resolve_codex_runtime_credentials()
             api_key = creds.get("api_key", "")
+            account_id = creds.get("account_id", "")
             last_refresh = creds.get("last_refresh")
             if not explicit_base_url:
                 base_url = creds.get("base_url", "").rstrip("/") or base_url
@@ -441,6 +450,7 @@ def _resolve_explicit_runtime(
             "api_mode": "codex_responses",
             "base_url": base_url,
             "api_key": api_key,
+            "account_id": account_id,
             "source": "explicit",
             "last_refresh": last_refresh,
             "requested_provider": requested_provider,
@@ -613,6 +623,7 @@ def resolve_runtime_provider(
             "api_mode": "codex_responses",
             "base_url": creds.get("base_url", "").rstrip("/"),
             "api_key": creds.get("api_key", ""),
+            "account_id": creds.get("account_id", ""),
             "source": creds.get("source", "hermes-auth-store"),
             "last_refresh": creds.get("last_refresh"),
             "requested_provider": requested_provider,
@@ -622,6 +633,32 @@ def resolve_runtime_provider(
         creds = resolve_external_process_provider_credentials(provider)
         return {
             "provider": "copilot-acp",
+            "api_mode": "chat_completions",
+            "base_url": creds.get("base_url", "").rstrip("/"),
+            "api_key": creds.get("api_key", ""),
+            "command": creds.get("command", ""),
+            "args": list(creds.get("args") or []),
+            "source": creds.get("source", "process"),
+            "requested_provider": requested_provider,
+        }
+
+    if provider == "claude-code":
+        creds = resolve_external_process_provider_credentials(provider)
+        return {
+            "provider": "claude-code",
+            "api_mode": "chat_completions",
+            "base_url": creds.get("base_url", "").rstrip("/"),
+            "api_key": creds.get("api_key", ""),
+            "command": creds.get("command", ""),
+            "args": list(creds.get("args") or []),
+            "source": creds.get("source", "process"),
+            "requested_provider": requested_provider,
+        }
+
+    if provider == "litert-lm":
+        creds = resolve_external_process_provider_credentials(provider)
+        return {
+            "provider": "litert-lm",
             "api_mode": "chat_completions",
             "base_url": creds.get("base_url", "").rstrip("/"),
             "api_key": creds.get("api_key", ""),
