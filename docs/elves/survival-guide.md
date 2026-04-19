@@ -18,17 +18,17 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 17 complete. Scout 18 next (obsidian edge cases, UI polish).
+Reason: Open-ended mode active. Scout 19 complete. Scout 20 next (deeper audit, UI review).
 ```
 
 ## Current Phase
-SCOUT 17 COMPLETE — All features stable. Full previews lifecycle verified. All acceptance criteria met.
+SCOUT 19 COMPLETE — 7140/7140 tests pass. All 8 fixes committed + pushed. System stable.
 
 ## Next Exact Batch
-Scout 18: Broader audit options:
-- Review obsidian_tool.py edge cases (vault path issues, subprocess errors)
-- Test Hermes on Telegram manually after MCP fix
-- Check fleet.optijara.ai/live-apps for any UI polish issues
+Scout 20: Possible actions:
+- Deeper gateway code audit (check for other None-arg patterns, other dispatch callers)
+- Review atlas-dashboard for any remaining UI improvements
+- Look for issues in the Hermes Telegram response quality after MCP fix
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -46,6 +46,8 @@ Scout 18: Broader audit options:
 - **Scout 15** ✅ MCP fix unit-verified (_build_cmd injects --mcp-config when tools provided, skips otherwise); hermes-agent pushed to fork (hamzadiaz/hermes-agent)
 - **Scout 16** ✅ Temp MCP config file cleanup added (delete=False files now removed in finally blocks); committed + pushed
 - **Scout 17** ✅ Stop robustness verified: npm + node process tree exits cleanly on SIGTERM; full start→stop→restart cycle clean; no code changes needed
+- **Scout 18** ✅ registry.dispatch None-args bug fixed: web_search (and any tool) no longer crashes when model emits tool call with null args
+- **Scout 19** ✅ Final xdist: 7140/7140 pass (0 fail, clean after all fixes)
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

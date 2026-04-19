@@ -4,6 +4,37 @@
 
 ---
 
+## Scout 19 — Final Test Confirmation (2026-04-20T02:05Z)
+
+**Duration:** ~5m
+**Status:** Complete ✅
+
+- xdist suite: 7140 passed, 277 skipped, 0 failed (clean run after registry fix)
+- 4 total commits since elves run started: MCP fix + obsidian + cleanup + registry
+- Gateway running, all agents operational
+
+---
+
+## Scout 18 — Error Audit + registry.dispatch Fix (2026-04-20T01:58Z)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- Reviewed gateway error logs since restart
+- Found production error: `web_search dispatch error: 'NoneType' object has no attribute 'get'`
+  - Root cause: model emits tool call with null/empty args, registry.dispatch passes None to handler
+  - Fix: `effective_args = args if args is not None else {}` in `registry.dispatch`
+  - Affects any tool handler that calls `.get()` on args
+- All other errors confirmed as: (1) test-induced mocks, (2) expected infra (Modal not configured, HA offline), (3) historical (pre-April 20)
+- Committed (`484801e5`), pushed to fork
+- Gateway restarted
+
+**Files changed:**
+- `tools/registry.py`: +1 guard line
+
+---
+
 ## Scout 17 — Stop Robustness + Full Cycle Test (2026-04-20T01:55Z)
 
 **Duration:** ~10m
