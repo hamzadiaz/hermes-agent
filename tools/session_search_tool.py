@@ -344,6 +344,44 @@ def session_search(
             if len(seen_sessions) >= limit:
                 break
 
+        # Always inject the most recent session into keyword results if it
+        # isn't already there. Prevents keyword-biased queries from hiding
+        # the latest work (e.g. user asks "what did we last do" but memory
+        # generates a topic-specific query that misses the newest session).
+        try:
+            recent_sessions = db.list_sessions_rich(
+                limit=5, exclude_sources=list(_HIDDEN_SESSION_SOURCES)
+            )
+            for r in recent_sessions:
+                sid = r.get("id", "")
+                if not sid:
+                    continue
+                if r.get("parent_session_id"):
+                    continue  # skip child/delegation sessions
+                if current_lineage_root and sid == current_lineage_root:
+                    continue
+                if current_session_id and sid == current_session_id:
+                    continue
+                if sid not in seen_sessions:
+                    # Most recent session is missing from keyword results — inject it.
+                    seen_sessions = {
+                        sid: {
+                            "session_id": sid,
+                            "source": r.get("source", ""),
+                            "session_started": r.get("started_at"),
+                            "model": r.get("model"),
+                            "_injected_recent": True,
+                        },
+                        **seen_sessions,
+                    }
+                    # Trim to limit (drop the last / least-relevant keyword match)
+                    if len(seen_sessions) > limit:
+                        last_key = list(seen_sessions.keys())[-1]
+                        del seen_sessions[last_key]
+                break  # only inject the single most recent missing session
+        except Exception as e:
+            logging.debug("Failed to inject most-recent session: %s", e)
+
         # Prepare all sessions for parallel summarization
         tasks = []
         for session_id, match_info in seen_sessions.items():
@@ -353,8 +391,16 @@ def session_search(
                     continue
                 session_meta = db.get_session(session_id) or {}
                 conversation_text = _format_conversation(messages)
-                conversation_text = _truncate_around_matches(conversation_text, query)
-                tasks.append((session_id, match_info, conversation_text, session_meta))
+                # Injected most-recent sessions may not contain the keyword query
+                # terms — use a generic recency label so the summarizer gives a
+                # full overview rather than hunting for absent keywords.
+                effective_query = (
+                    "most recent session — summarize everything"
+                    if match_info.get("_injected_recent")
+                    else query
+                )
+                conversation_text = _truncate_around_matches(conversation_text, effective_query)
+                tasks.append((session_id, match_info, conversation_text, session_meta, effective_query))
             except Exception as e:
                 logging.warning(
                     "Failed to prepare session %s: %s",
@@ -367,8 +413,8 @@ def session_search(
         async def _summarize_all() -> List[Union[str, Exception]]:
             """Summarize all sessions in parallel."""
             coros = [
-                _summarize_session(text, query, meta)
-                for _, _, text, meta in tasks
+                _summarize_session(text, eff_query, meta)
+                for _, _, text, meta, eff_query in tasks
             ]
             return await asyncio.gather(*coros, return_exceptions=True)
 
@@ -392,7 +438,7 @@ def session_search(
             }, ensure_ascii=False)
 
         summaries = []
-        for (session_id, match_info, conversation_text, _), result in zip(tasks, results):
+        for (session_id, match_info, conversation_text, _, _eff_q), result in zip(tasks, results):
             if isinstance(result, Exception):
                 logging.warning(
                     "Failed to summarize session %s: %s",
@@ -406,6 +452,8 @@ def session_search(
                 "source": match_info.get("source", "unknown"),
                 "model": match_info.get("model"),
             }
+            if match_info.get("_injected_recent"):
+                entry["most_recent"] = True
 
             if result:
                 entry["summary"] = result

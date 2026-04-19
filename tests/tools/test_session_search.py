@@ -256,6 +256,64 @@ class TestSessionSearch:
         assert result["results"] == []
         assert result["sessions_searched"] == 0
 
+    def test_most_recent_session_injected_when_absent_from_keyword_results(self):
+        """Keyword search should always include the most recent session even if it
+        doesn't match the query — prevents memory-biased queries from hiding the
+        latest work (recency regression: 'what did we last do' returned 6-hour-old
+        session instead of the terminal check 6 minutes prior)."""
+        from unittest.mock import MagicMock, AsyncMock, patch as _patch
+        from tools.session_search_tool import session_search
+
+        mock_db = MagicMock()
+        current_sid = "20260304_120000_current"
+        keyword_match_sid = "20260303_100000_keyword_match"   # 6 hours ago
+        most_recent_sid = "20260304_115500_most_recent"       # 6 minutes ago
+
+        # FTS5 only finds the old session (keyword-biased query)
+        mock_db.search_messages.return_value = [
+            {"session_id": keyword_match_sid, "content": "stale agent fix gateway",
+             "source": "telegram", "session_started": 1709400000, "model": "test"},
+        ]
+
+        def _get_session(sid):
+            return {"parent_session_id": None}
+
+        mock_db.get_session.side_effect = _get_session
+        mock_db.get_messages_as_conversation.return_value = [
+            {"role": "user", "content": "verify terminal"},
+            {"role": "assistant", "content": "Yes, terminal available."},
+        ]
+
+        # list_sessions_rich returns most_recent first, then keyword_match
+        mock_db.list_sessions_rich.return_value = [
+            {"id": most_recent_sid, "source": "telegram",
+             "started_at": 1709499600, "model": "test", "parent_session_id": None},
+            {"id": keyword_match_sid, "source": "telegram",
+             "started_at": 1709400000, "model": "test", "parent_session_id": None},
+        ]
+
+        with _patch("tools.session_search_tool.async_call_llm",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("no provider")):
+            result = json.loads(session_search(
+                query="stale agent fix OR gateway",
+                db=mock_db,
+                current_session_id=current_sid,
+                limit=3,
+            ))
+
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        # Most recent session must appear in results even though it didn't match the query
+        assert most_recent_sid in session_ids, (
+            f"Most recent session {most_recent_sid} missing from results: {session_ids}"
+        )
+        # It should be the first result (injected at position 0)
+        assert session_ids[0] == most_recent_sid
+        # It should be flagged as most_recent
+        most_recent_entry = next(r for r in result["results"] if r["session_id"] == most_recent_sid)
+        assert most_recent_entry.get("most_recent") is True
+
     def test_current_root_session_excludes_child_lineage(self):
         """Delegation child hits should be excluded when they resolve to the current root session."""
         from unittest.mock import MagicMock
