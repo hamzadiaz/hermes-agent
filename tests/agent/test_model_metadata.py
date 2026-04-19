@@ -297,6 +297,29 @@ class TestGetModelContextLength:
 
         assert result == 200000
 
+    @patch("agent.model_metadata.fetch_model_metadata")
+    def test_cli_provider_url_not_probed_uses_hardcoded_defaults(self, mock_fetch):
+        """cli:// URLs (Claude Code CLI) are not HTTP endpoints — must not be probed.
+        Context length should resolve from hardcoded defaults, not return probe-down 128K."""
+        mock_fetch.return_value = {}
+
+        result = get_model_context_length(
+            "claude-opus-4-7",
+            base_url="cli://claude-code",
+        )
+
+        assert result == 200000  # hardcoded default, not 128K probe-down fallback
+
+    @patch("agent.model_metadata.fetch_model_metadata")
+    def test_claude_4_7_has_explicit_hardcoded_default(self, mock_fetch):
+        """claude-opus-4-7 and claude-sonnet-4-7 have explicit 200K entries."""
+        mock_fetch.return_value = {}
+
+        assert get_model_context_length("claude-opus-4-7") == 200000
+        assert get_model_context_length("claude-sonnet-4-7") == 200000
+        assert get_model_context_length("claude-opus-4.7") == 200000
+        assert get_model_context_length("claude-sonnet-4.7") == 200000
+
 
 # =========================================================================
 # _strip_provider_prefix — Ollama model:tag vs provider:model

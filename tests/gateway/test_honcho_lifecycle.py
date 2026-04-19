@@ -1,5 +1,5 @@
 """Tests for gateway-owned Honcho lifecycle helpers."""
-
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,7 +7,7 @@ import pytest
 
 from gateway.config import Platform
 from gateway.platforms.base import MessageEvent
-from gateway.session import SessionSource
+from gateway.session import SessionEntry, SessionSource
 
 
 def _make_runner():
@@ -103,6 +103,84 @@ class TestGatewayHonchoLifecycle:
         runner._shutdown_gateway_honcho.assert_called_once_with("gateway-key")
         runner._async_flush_memories.assert_called_once_with("old-session", "gateway-key")
         assert "Session reset" in result
+
+    @pytest.mark.asyncio
+    async def test_auto_reset_cleans_gateway_honcho_and_agent_cache_before_run(self, monkeypatch):
+        """Auto-reset must evict stale in-memory session state before the next turn."""
+        runner = _make_runner()
+        event = _make_event("hello")
+        source = event.source
+
+        session_entry = SessionEntry(
+            session_key="gateway-key",
+            session_id="new-session",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            platform=Platform.TELEGRAM,
+            chat_type="dm",
+            was_auto_reset=True,
+            auto_reset_reason="daily",
+            reset_had_activity=False,
+        )
+
+        runner.config = SimpleNamespace()
+        runner.session_store = MagicMock()
+        runner.session_store.get_or_create_session.return_value = session_entry
+        runner.session_store.load_transcript.return_value = []
+        runner.session_store.has_any_sessions.return_value = True
+        runner.session_store.append_to_transcript = MagicMock()
+        runner.session_store.rewrite_transcript = MagicMock()
+        runner.session_store.update_session = MagicMock()
+        runner.session_store.config = SimpleNamespace(
+            get_reset_policy=lambda **kwargs: SimpleNamespace(
+                notify=False,
+                notify_exclude_platforms=(),
+                at_hour=4,
+                idle_minutes=60,
+            )
+        )
+        runner._session_db = None
+        runner._reasoning_config = None
+        runner._provider_routing = {}
+        runner._fallback_model = None
+        runner._show_reasoning = False
+        runner._voice_mode = {}
+        runner._is_user_authorized = lambda _source: True
+        runner._set_session_env = lambda _context: None
+        runner._should_send_voice_reply = lambda *_args, **_kwargs: False
+        runner._send_voice_reply = AsyncMock()
+        runner._capture_gateway_honcho_if_configured = lambda *args, **kwargs: None
+        runner._emit_gateway_run_progress = AsyncMock()
+        runner._format_session_info = MagicMock(return_value="")
+        runner._shutdown_gateway_honcho = MagicMock()
+        runner._evict_cached_agent = MagicMock()
+        runner._run_agent = AsyncMock(return_value={
+            "final_response": "ok",
+            "messages": [],
+            "tools": [],
+            "history_offset": 0,
+            "last_prompt_tokens": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "model": "openai/test-model",
+        })
+
+        import gateway.run as gateway_run
+        monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {"api_key": "***"})
+        monkeypatch.setattr(
+            gateway_run,
+            "build_session_context",
+            lambda *args, **kwargs: SimpleNamespace(source=source, connected_platforms=[], home_channels={}),
+        )
+        monkeypatch.setattr(gateway_run, "build_session_context_prompt", lambda *args, **kwargs: "CTX")
+
+        response = await runner._handle_message_with_agent(event, source, "quick-key")
+
+        assert response == "ok"
+        runner._shutdown_gateway_honcho.assert_called_once_with("gateway-key")
+        runner._evict_cached_agent.assert_called_once_with("gateway-key")
+        assert session_entry.was_auto_reset is False
+        assert session_entry.auto_reset_reason is None
 
     def test_flush_memories_reuses_gateway_session_key_and_skips_honcho_sync(self):
         runner = _make_runner()

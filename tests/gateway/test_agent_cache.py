@@ -9,9 +9,12 @@ Verifies that the agent cache correctly:
 - Preserves frozen system prompt across turns
 """
 
+import asyncio
 import hashlib
 import json
+import sys
 import threading
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,6 +30,29 @@ def _make_runner():
     return runner
 
 
+def _make_run_agent_runner():
+    """Create a bare GatewayRunner suitable for calling _run_agent directly."""
+    import gateway.run as gateway_run
+
+    runner = object.__new__(gateway_run.GatewayRunner)
+    runner.adapters = {}
+    runner._ephemeral_system_prompt = ""
+    runner._prefill_messages = []
+    runner._reasoning_config = None
+    runner._show_reasoning = False
+    runner._provider_routing = {}
+    runner._fallback_model = None
+    runner._running_agents = {}
+    runner._session_db = None
+    runner._agent_cache = {}
+    runner._agent_cache_lock = threading.Lock()
+    runner._get_or_create_gateway_honcho = lambda session_key: (None, None)
+    runner.hooks = MagicMock()
+    runner.hooks.emit = MagicMock()
+    runner.hooks.loaded_hooks = []
+    return runner
+
+
 class TestAgentConfigSignature:
     """Config signature produces stable, distinct keys."""
 
@@ -35,8 +61,8 @@ class TestAgentConfigSignature:
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
         assert sig1 == sig2
 
     def test_model_change_different_signature(self):
@@ -44,8 +70,8 @@ class TestAgentConfigSignature:
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-opus-4.6", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("claude-opus-4.6", runtime, ["hermes-telegram"], "", "session-1")
         assert sig1 != sig2
 
     def test_same_token_prefix_different_full_token_changes_signature(self):
@@ -66,8 +92,8 @@ class TestAgentConfigSignature:
         }
 
         assert rt1["api_key"][:8] == rt2["api_key"][:8]
-        sig1 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt1, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt2, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt1, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("gpt-5.3-codex", rt2, ["hermes-telegram"], "", "session-1")
         assert sig1 != sig2
 
     def test_provider_change_different_signature(self):
@@ -75,28 +101,49 @@ class TestAgentConfigSignature:
 
         rt1 = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
         rt2 = {"api_key": "sk-test12345678", "base_url": "https://api.anthropic.com", "provider": "anthropic"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt1, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt2, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt1, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", rt2, ["hermes-telegram"], "", "session-1")
         assert sig1 != sig2
 
     def test_toolset_change_different_signature(self):
         from gateway.run import GatewayRunner
 
         runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-discord"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-discord"], "", "session-1")
         assert sig1 != sig2
 
     def test_reasoning_not_in_signature(self):
         """Reasoning config is set per-message, not part of the signature."""
         from gateway.run import GatewayRunner
 
-        runtime = {"api_key": "sk-test12345678", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
+        runtime = {"api_key": "***", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
         # Same config — signature should be identical regardless of what
         # reasoning_config the caller might have (it's not passed in)
-        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
-        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig1 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
+        sig2 = GatewayRunner._agent_config_signature("claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
         assert sig1 == sig2
+
+    def test_session_id_change_different_signature(self):
+        """A fresh session_id must force a fresh cached agent."""
+        from gateway.run import GatewayRunner
+
+        runtime = {"api_key": "***", "base_url": "https://openrouter.ai/api/v1", "provider": "openrouter"}
+        sig1 = GatewayRunner._agent_config_signature(
+            "claude-sonnet-4",
+            runtime,
+            ["hermes-telegram"],
+            "",
+            "session-old",
+        )
+        sig2 = GatewayRunner._agent_config_signature(
+            "claude-sonnet-4",
+            runtime,
+            ["hermes-telegram"],
+            "",
+            "session-new",
+        )
+        assert sig1 != sig2
 
 
 class TestAgentCacheLifecycle:
@@ -110,7 +157,7 @@ class TestAgentCacheLifecycle:
         session_key = "telegram:12345"
         runtime = {"api_key": "test", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
-        sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
 
         # First message — create and cache
         agent1 = AIAgent(
@@ -138,7 +185,7 @@ class TestAgentCacheLifecycle:
         runtime = {"api_key": "test", "base_url": "https://openrouter.ai/api/v1",
                     "provider": "openrouter", "api_mode": "chat_completions"}
 
-        old_sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "")
+        old_sig = runner._agent_config_signature("anthropic/claude-sonnet-4", runtime, ["hermes-telegram"], "", "session-1")
         agent1 = AIAgent(
             model="anthropic/claude-sonnet-4", api_key="test",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
@@ -149,7 +196,7 @@ class TestAgentCacheLifecycle:
             runner._agent_cache[session_key] = (agent1, old_sig)
 
         # New model → different signature
-        new_sig = runner._agent_config_signature("anthropic/claude-opus-4.6", runtime, ["hermes-telegram"], "")
+        new_sig = runner._agent_config_signature("anthropic/claude-opus-4.6", runtime, ["hermes-telegram"], "", "session-1")
         assert new_sig != old_sig
 
         with runner._agent_cache_lock:
@@ -237,7 +284,7 @@ class TestAgentCacheLifecycle:
         from run_agent import AIAgent
 
         agent = AIAgent(
-            model="anthropic/claude-sonnet-4", api_key="test",
+            model="anthropic/claude-sonnet-4", api_key="***",
             base_url="https://openrouter.ai/api/v1", provider="openrouter",
             max_iterations=5, quiet_mode=True, skip_context_files=True,
             skip_memory=True,
@@ -258,3 +305,82 @@ class TestAgentCacheLifecycle:
         cb3 = lambda *a: None
         agent.tool_progress_callback = cb3
         assert agent.tool_progress_callback is cb3
+
+    def test_run_agent_rebuilds_cached_agent_when_session_id_changes(self, monkeypatch):
+        """Same session_key + new session_id must not reuse a stale cached agent."""
+        import gateway.run as gateway_run
+        from gateway.config import Platform
+        from gateway.session import SessionSource
+
+        class _CountingAgent:
+            init_calls = []
+
+            def __init__(self, *args, **kwargs):
+                type(self).init_calls.append(dict(kwargs))
+                self.session_id = kwargs.get("session_id")
+                self.tools = []
+                self.reasoning_config = kwargs.get("reasoning_config")
+                self.tool_progress_callback = None
+                self.step_callback = None
+                self.stream_delta_callback = None
+                self.status_callback = None
+
+            def run_conversation(self, message, conversation_history=None, task_id=None):
+                return {
+                    "final_response": "ok",
+                    "messages": [],
+                    "api_calls": 1,
+                    "session_id": self.session_id,
+                }
+
+        fake_run_agent = types.ModuleType("run_agent")
+        fake_run_agent.AIAgent = _CountingAgent
+        monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)
+        monkeypatch.setattr(gateway_run, "load_dotenv", lambda *args, **kwargs: None)
+        monkeypatch.setattr(gateway_run, "_resolve_runtime_agent_kwargs", lambda: {
+            "provider": "openrouter",
+            "api_mode": "chat_completions",
+            "base_url": "https://openrouter.ai/api/v1",
+            "api_key": "***",
+        })
+
+        runner = _make_run_agent_runner()
+        source = SessionSource(
+            platform=Platform.LOCAL,
+            chat_id="cli",
+            chat_name="CLI",
+            chat_type="dm",
+            user_id="user-1",
+        )
+
+        _CountingAgent.init_calls = []
+        session_key = "agent:main:local:dm"
+
+        result1 = asyncio.run(
+            runner._run_agent(
+                None,
+                message="ping",
+                context_prompt="",
+                history=[],
+                source=source,
+                session_id="session-1",
+                session_key=session_key,
+            )
+        )
+        result2 = asyncio.run(
+            runner._run_agent(
+                None,
+                message="ping again",
+                context_prompt="",
+                history=[],
+                source=source,
+                session_id="session-2",
+                session_key=session_key,
+            )
+        )
+
+        assert result1["final_response"] == "ok"
+        assert result2["final_response"] == "ok"
+        assert len(_CountingAgent.init_calls) == 2
+        assert _CountingAgent.init_calls[0]["session_id"] == "session-1"
+        assert _CountingAgent.init_calls[1]["session_id"] == "session-2"

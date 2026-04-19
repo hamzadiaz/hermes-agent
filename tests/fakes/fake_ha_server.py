@@ -212,20 +212,33 @@ class FakeHAServer:
             "result": None,
         })
 
-        # Step 6: push events from queue until closed
-        try:
+        # Step 6: push events from queue until closed.
+        # Run a reader alongside the writer so aiohttp can complete the
+        # WebSocket close handshake when the client sends a CLOSE frame.
+        # Without the reader, the server never drains the CLOSE frame and
+        # the client's ws.close() hangs waiting for a CLOSE response.
+        async def _write_events():
             while not ws.closed:
                 try:
                     event_data = await asyncio.wait_for(
                         self._event_queue.get(), timeout=0.1,
                     )
-                    await ws.send_json({
-                        "id": sub_id,
-                        "type": "event",
-                        "event": event_data,
-                    })
+                    if not ws.closed:
+                        await ws.send_json({
+                            "id": sub_id,
+                            "type": "event",
+                            "event": event_data,
+                        })
                 except asyncio.TimeoutError:
                     continue
+
+        async def _drain_incoming():
+            # Consume incoming frames so the WS close handshake can proceed.
+            async for _msg in ws:
+                pass
+
+        try:
+            await asyncio.gather(_write_events(), _drain_incoming(), return_exceptions=True)
         except (ConnectionResetError, asyncio.CancelledError):
             pass
 

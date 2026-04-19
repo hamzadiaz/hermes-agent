@@ -25,6 +25,9 @@ def _isolate_hermes_home(tmp_path, monkeypatch):
     (fake_home / "cron").mkdir()
     (fake_home / "memories").mkdir()
     (fake_home / "skills").mkdir()
+    # Short gateway_timeout prevents approval-system tests from hanging: the
+    # production default is 300s; in tests we want threads to unblock quickly.
+    (fake_home / "config.yaml").write_text("approvals:\n  gateway_timeout: 5\n")
     monkeypatch.setenv("HERMES_HOME", str(fake_home))
     # Reset plugin singleton so tests don't leak plugins from ~/.hermes/plugins/
     try:
@@ -38,6 +41,11 @@ def _isolate_hermes_home(tmp_path, monkeypatch):
     monkeypatch.delenv("HERMES_SESSION_CHAT_ID", raising=False)
     monkeypatch.delenv("HERMES_SESSION_CHAT_NAME", raising=False)
     monkeypatch.delenv("HERMES_GATEWAY_SESSION", raising=False)
+    # gateway/run.py calls load_hermes_dotenv() at module-level import, which
+    # injects the real ~/.hermes/.env into os.environ (including bot tokens).
+    # Clear platform tokens so tools_config tests see a clean single-platform env.
+    for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHATSAPP_ENABLED"):
+        monkeypatch.delenv(_tok, raising=False)
 
 
 @pytest.fixture()

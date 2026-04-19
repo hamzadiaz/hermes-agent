@@ -547,6 +547,7 @@ class TestBlockingApprovalE2E:
         from tools.approval import (
             register_gateway_notify, unregister_gateway_notify,
             resolve_gateway_approval, check_all_command_guards,
+            pending_approval_count,
         )
 
         session_key = "e2e-mixed"
@@ -571,7 +572,12 @@ class TestBlockingApprovalE2E:
         ]
         for t in threads:
             t.start()
-        time.sleep(0.3)
+
+        # Wait for both threads to reach the blocking approval queue
+        for _ in range(100):
+            if pending_approval_count(session_key) >= 2:
+                break
+            time.sleep(0.05)
 
         # Approve first, deny second
         resolve_gateway_approval(session_key, "once")   # oldest
@@ -580,8 +586,9 @@ class TestBlockingApprovalE2E:
         for t in threads:
             t.join(timeout=5)
 
-        assert results[0]["approved"] is True
-        assert results[1]["approved"] is False
+        # One thread was approved ("once"), the other denied — order is not guaranteed
+        approved_flags = sorted(r["approved"] for r in results)
+        assert approved_flags == [False, True]
         unregister_gateway_notify(session_key)
 
 

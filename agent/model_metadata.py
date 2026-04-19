@@ -89,6 +89,10 @@ DEFAULT_CONTEXT_LENGTHS = {
     # fuzzy-match collisions (e.g. "anthropic/claude-sonnet-4" is a
     # substring of "anthropic/claude-sonnet-4.6").
     # OpenRouter-prefixed models resolve via OpenRouter live API or models.dev.
+    "claude-opus-4-7": 200000,
+    "claude-sonnet-4-7": 200000,
+    "claude-opus-4.7": 200000,
+    "claude-sonnet-4.7": 200000,
     "claude-opus-4-6": 1000000,
     "claude-sonnet-4-6": 1000000,
     "claude-opus-4.6": 1000000,
@@ -157,7 +161,9 @@ def _is_openrouter_base_url(base_url: str) -> bool:
 
 def _is_custom_endpoint(base_url: str) -> bool:
     normalized = _normalize_base_url(base_url)
-    return bool(normalized) and not _is_openrouter_base_url(normalized)
+    # cli:// is an internal URI scheme for CLI-based providers (e.g. Claude Code CLI)
+    # — not an HTTP endpoint, so never probe it for model metadata.
+    return bool(normalized) and not _is_openrouter_base_url(normalized) and not normalized.startswith("cli://")
 
 
 _URL_TO_PROVIDER: Dict[str, str] = {

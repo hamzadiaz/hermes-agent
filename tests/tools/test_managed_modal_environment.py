@@ -12,6 +12,27 @@ import pytest
 TOOLS_DIR = Path(__file__).resolve().parents[2] / "tools"
 
 
+@pytest.fixture(autouse=True)
+def _restore_sys_modules():
+    """Restore sys.modules after each test.
+
+    _install_fake_tools_package() aggressively clears and replaces 'tools',
+    'agent', and 'hermes_cli' entries in sys.modules.  Without cleanup the
+    poisoned entries persist into subsequent test modules (e.g. test_memory_tool)
+    whose MemoryStore classes were bound to the original module objects at
+    import time, causing AttributeError / wrong MEMORY_DIR lookups.
+    """
+    snapshot = {k: v for k, v in sys.modules.items()}
+    yield
+    # Remove any modules added during the test
+    for key in list(sys.modules):
+        if key not in snapshot:
+            del sys.modules[key]
+    # Restore modules that were removed or replaced
+    for key, val in snapshot.items():
+        sys.modules[key] = val
+
+
 def _load_tool_module(module_name: str, filename: str):
     spec = spec_from_file_location(module_name, TOOLS_DIR / filename)
     assert spec and spec.loader
