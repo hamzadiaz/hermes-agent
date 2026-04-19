@@ -4,6 +4,55 @@
 
 ---
 
+## Scout 17 — Stop Robustness + Full Cycle Test (2026-04-20T01:55Z)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- Tested start→stop lifecycle 3x: npm parent process + node children all exit cleanly on SIGTERM to lsof PID
+- No orphans detected after stop
+- Full cycle confirmed: start (running, PID shown) → stop (stopped, pid null) → restart (new PID)
+- No code changes needed — stop is robust as-is
+
+---
+
+## Scout 16 — Temp File Cleanup (2026-04-20T01:50Z)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `delete=False` temp MCP config files were persisting on disk after subprocess completed
+- Added `_extract_mcp_tmp()` and `_cleanup_mcp_tmp()` static methods to `ClaudeCodeClient`
+- Wired cleanup into both sync (subprocess.run finally block) and streaming (Popen finally block + FileNotFoundError path)
+- Unit-tested: file exists before cleanup, gone after, double-cleanup safe
+- 7140 tests still pass
+- Committed (`76c081cf`), pushed to fork
+
+---
+
+## Scout 14 — xdist Stability + Vault Promotions + Commit (2026-04-20T01:44Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- xdist suite run 3× (7140 pass each): 1 flake in run 1 and run 2 on `test_terminal_and_execute_code_tools_resolve_for_managed_modal`, 0 in run 3. Confirmed pre-existing xdist race (HOME env mutation by monkeypatch bleeds between parallel workers). NOT caused by our changes — verified by `git stash` test.
+- Reviewed "untracked" files: `agent/curl_cffi_transport.py` + `agent/litert_lm_client.py` — both already committed in `c3cc36e6`. No action needed.
+- Cleared 2 pending vault promotions (Apr 16): both approved and added to `01-Shared-Core/decisions-log.md`. Vault quality audit now: **grade A, score 0, issues 0**.
+- Committed hermes-agent changes (`0b71f1d7`): MCP fix + obsidian_tool + docs
+- Committed atlas-dashboard previews (`0477cad`): registry + API + UI
+
+**Current state:**
+- Gateway PID 40320 running (Hermes main on Claude Opus 4.7)
+- 7140 tests pass, 277 skipped
+- Vault: grade A
+- quran-learn running on port 3400 (live preview at quran.optijara.ai)
+- live-apps page at fleet.optijara.ai/live-apps: fully functional
+
+---
+
 ## Scout 13 — Claude Code MCP Fix + Live-App Previews (2026-04-20T01:20Z)
 
 **Duration:** ~80m

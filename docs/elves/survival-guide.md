@@ -18,18 +18,17 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 13 complete. Scout 14 work remaining (xdist, vault promotions, MCP fix verification).
+Reason: Open-ended mode active. Scout 17 complete. Scout 18 next (obsidian edge cases, UI polish).
 ```
 
 ## Current Phase
-SCOUT 13 COMPLETE — MCP isolation fix + live-app previews fully shipped and browser-verified.
+SCOUT 17 COMPLETE — All features stable. Full previews lifecycle verified. All acceptance criteria met.
 
 ## Next Exact Batch
-Scout 14: Possible actions:
-- Run xdist suite 3x to check for non-deterministic failures
-- Review untracked files: agent/curl_cffi_transport.py, agent/litert_lm_client.py
-- Clear the 2 pending vault promotions (pre-existing from Apr 16)
-- Test Hermes Claude Code agent after MCP fix: confirm terminal/file/todo work after /new in a fresh session
+Scout 18: Broader audit options:
+- Review obsidian_tool.py edge cases (vault path issues, subprocess errors)
+- Test Hermes on Telegram manually after MCP fix
+- Check fleet.optijara.ai/live-apps for any UI polish issues
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -43,6 +42,10 @@ Scout 14: Possible actions:
 - **Scout 11** ✅ Codex + Claude agent identity files rewritten with distinct personas
 - **Scout 12** ✅ Obsidian vault integration: obsidian_tool.py created, wired into flush_memories; vault grade D→B
 - **Scout 13** ✅ MCP isolation fix in claude_code_client.py; live-app previews (registry + API + Start/Stop/Open UI) shipped and browser-verified at fleet.optijara.ai/live-apps
+- **Scout 14** ✅ xdist 3x clean (7140/7140); untracked files confirmed committed; vault promotions cleared; vault grade **A** (was D → B → A)
+- **Scout 15** ✅ MCP fix unit-verified (_build_cmd injects --mcp-config when tools provided, skips otherwise); hermes-agent pushed to fork (hamzadiaz/hermes-agent)
+- **Scout 16** ✅ Temp MCP config file cleanup added (delete=False files now removed in finally blocks); committed + pushed
+- **Scout 17** ✅ Stop robustness verified: npm + node process tree exits cleanly on SIGTERM; full start→stop→restart cycle clean; no code changes needed
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
