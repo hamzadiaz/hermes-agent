@@ -4,6 +4,72 @@
 
 ---
 
+## Scout 13 — Claude Code MCP Fix + Live-App Previews (2026-04-20T01:20Z)
+
+**Duration:** ~80m
+**Status:** Complete ✅
+
+**What happened:**
+
+### Fix A: claude_code_client MCP isolation
+- Root cause: `claude_code_client.py` uses `--tools ""` to disable Claude Code's native tools, but this does NOT disable MCP servers. The `superpowers@claude-plugins-official` plugin in `~/.claude/settings.json` loads Playwright MCP into every claude subprocess → Hermes only sees browser tools, not XML tool protocol.
+- Fix: Added `tempfile` import + inject `--mcp-config /tmp/hermes_nomcp_*.json` (empty `{"mcpServers":{}}`) when Hermes provides tools. Prevents MCP servers from loading in the tool-execution subprocess.
+- File: `agent/claude_code_client.py` lines 12 (import) + 424–433 (build_cmd)
+- Gateway restarted (PID 40320). 7140 tests pass.
+
+### Fix B: Live-App Previews feature (atlas-dashboard)
+- Created `~/.hermes/previews/registry.json` — persistent registry of preview apps (slug, port, startCommand, tunnelUrl)
+- Created `/api/previews/route.ts` (GET: list with runtime status via `lsof`; POST: register; DELETE: remove)
+- Created `/api/previews/[slug]/start/route.ts` — spawns dev server detached; returns PID
+- Created `/api/previews/[slug]/stop/route.ts` — SIGTERM → SIGKILL by port PID
+- **Bug fix**: lsof args `-iTCP -i:3400` OR-match ALL TCP listeners; corrected to `-iTCP:3400`
+- **Bug fix**: `spawn` stdio WriteStream with `fd:null` fails; switched to `openSync` → numeric fd
+- Updated `live-apps/page.tsx`: new "Registered Previews" section with Start/Stop/Open buttons; "All Running Services" section gets new "tunnel" link button
+- Updated `/api/live-projects/route.ts` `inferAppName`: added port 3400 → "Quran Learn"
+- Registered quran-learn (slug=quran, port=3400) in registry; cloudflared already had `quran.optijara.ai → :3400`
+- Built and restarted atlas-dashboard via LaunchAgent
+- **Browser verification at fleet.optijara.ai/live-apps**: Registered Previews section shows Quran Learn (running, PID 43709), Open→quran.optijara.ai, Stop button, tunnel link. All Running Services correctly names port 3400 "Quran Learn".
+
+**Files changed (atlas-dashboard):**
+- `app/api/previews/route.ts` (NEW)
+- `app/api/previews/[slug]/start/route.ts` (NEW)
+- `app/api/previews/[slug]/stop/route.ts` (NEW)
+- `app/live-apps/page.tsx` (MODIFIED — Registered Previews section + tunnel button)
+- `app/api/live-projects/route.ts` (MODIFIED — port 3400 name)
+
+**Files changed (hermes-agent):**
+- `agent/claude_code_client.py` (MODIFIED — MCP isolation fix)
+
+**New files (filesystem):**
+- `~/.hermes/previews/registry.json`
+- `~/.hermes/previews/logs/quran.log` (auto-created on first start)
+
+---
+
+## Scout 12 — Obsidian Vault Integration (2026-04-20T00:31Z)
+
+**Duration:** ~70m
+**Status:** Complete ✅
+
+**What happened:**
+- Created `tools/obsidian_tool.py`: wraps `~/.hermes/scripts/hermes_vault_tools.py` via subprocess
+- Two tools registered under "obsidian" toolset: `obsidian_checkpoint`, `obsidian_update_working_context`
+- Auto-detect agent name from HERMES_HOME dir name via `_AGENT_NAME_MAP`
+- **Bug found + fixed**: `home.name.lower()` returned `.hermes` (with leading dot); added `.lstrip(".")` so `hermes` maps to `Hermes-Core` correctly
+- Added `tools.obsidian_tool` to `model_tools.py` `_discover_tools()` list
+- Wired "obsidian" into `_flush_memories_for_session` in `gateway/run.py`: added to `enabled_toolsets`, updated `flush_prompt` to instruct agent to call `obsidian_update_working_context`
+- Tested live on Telegram: after 4-turn session + /new, flush agent automatically wrote current_goal/last_action/next_steps to Hermes-Core/working-context.md at 00:41
+- Initialized all 6 agent vault files (Marketing, Malik, Musa, Boone, Alex, Hermes-Core) via direct tool call
+- Vault audit grade: **D → B** (stale_working_context cleared; only 2 old pending promotions remain)
+- 267 tests pass (no regressions)
+
+**Files changed:**
+- `tools/obsidian_tool.py` (NEW)
+- `model_tools.py`: +1 line in `_discover_tools()`
+- `gateway/run.py`: `enabled_toolsets` + `flush_prompt` updated
+
+---
+
 ## Batch 0 — Session Setup (2026-04-19T12:19:37Z)
 
 **Duration:** ~5m

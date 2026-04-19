@@ -707,7 +707,7 @@ class GatewayRunner:
                 model=model,
                 max_iterations=8,
                 quiet_mode=True,
-                enabled_toolsets=["memory", "skills"],
+                enabled_toolsets=["memory", "skills", "obsidian"],
                 session_id=old_session_id,
                 honcho_session_key=honcho_session_key,
             )
@@ -750,7 +750,11 @@ class GatewayRunner:
                 "(user profile or your notes) that would be useful in future sessions.\n"
                 "2. If you discovered a reusable workflow or solved a non-trivial "
                 "problem, consider saving it as a skill.\n"
-                "3. If nothing is worth saving, that's fine — just skip.\n\n"
+                "3. Call obsidian_update_working_context with a concise summary of "
+                "this session: what you were working on (current_goal), the most "
+                "important thing completed (last_action), and the most logical next "
+                "steps (next_steps). This keeps the Obsidian vault in sync.\n"
+                "4. If nothing is worth saving, that's fine — just skip steps 1-2.\n\n"
             )
 
             if _current_memory:
@@ -765,8 +769,8 @@ class GatewayRunner:
                 )
 
             flush_prompt += (
-                "Do NOT respond to the user. Just use the memory and skill_manage "
-                "tools if needed, then stop.]"
+                "Do NOT respond to the user. Just use the memory, skill_manage, "
+                "and obsidian tools if needed, then stop.]"
             )
 
             tmp_agent.run_conversation(

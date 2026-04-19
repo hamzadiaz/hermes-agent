@@ -18,17 +18,18 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. All 6 planned batches + scout complete. Additional bug hunting ongoing.
+Reason: Open-ended mode active. Scout 13 complete. Scout 14 work remaining (xdist, vault promotions, MCP fix verification).
 ```
 
 ## Current Phase
-SCOUT 11 COMPLETE — All planned work done + Scout 11 (agent identity fixes) complete. System healthy.
+SCOUT 13 COMPLETE — MCP isolation fix + live-app previews fully shipped and browser-verified.
 
 ## Next Exact Batch
-Scout 12: All planned work + Scout 11 complete. System healthy. Possible next actions:
-- Any remaining xdist non-deterministic failures (run xdist suite 3x, look for any new flakes)
-- Check agent/claude_code_client.py, agent/curl_cffi_transport.py, agent/litert_lm_client.py (untracked, potentially production code ready to commit)
-- Review remaining untracked files for any that should be committed
+Scout 14: Possible actions:
+- Run xdist suite 3x to check for non-deterministic failures
+- Review untracked files: agent/curl_cffi_transport.py, agent/litert_lm_client.py
+- Clear the 2 pending vault promotions (pre-existing from Apr 16)
+- Test Hermes Claude Code agent after MCP fix: confirm terminal/file/todo work after /new in a fresh session
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -39,6 +40,9 @@ Scout 12: All planned work + Scout 11 complete. System healthy. Possible next ac
 - **Batch 5** ✅ Integration branch created; merge plan documented; merge requires human (too risky to auto-execute)
 - **Batch 6** ✅ Final re-verification: 31/31 tests pass, gateway alive, all agents running
 - **Scout** ✅ Disk cleanup (+5GB), session split Fix A confirmed, 2 bugs fixed: model_metadata cli:// + compression routing
+- **Scout 11** ✅ Codex + Claude agent identity files rewritten with distinct personas
+- **Scout 12** ✅ Obsidian vault integration: obsidian_tool.py created, wired into flush_memories; vault grade D→B
+- **Scout 13** ✅ MCP isolation fix in claude_code_client.py; live-app previews (registry + API + Start/Stop/Open UI) shipped and browser-verified at fleet.optijara.ai/live-apps
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

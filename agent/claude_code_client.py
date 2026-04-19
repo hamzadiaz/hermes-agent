@@ -15,6 +15,7 @@ import os
 import queue
 import re
 import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -420,6 +421,16 @@ class ClaudeCodeClient:
             # Disable Claude Code's own tool runtime so Hermes remains the
             # single source of truth for tool execution.
             cmd.extend(["--tools", ""])
+            # Also pass an empty MCP config so user-installed MCP servers
+            # (e.g. superpowers Playwright) don't load in the subprocess and
+            # shadow Hermes's XML tool protocol.
+            empty_mcp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False, prefix="hermes_nomcp_"
+            )
+            json.dump({"mcpServers": {}}, empty_mcp)
+            empty_mcp.flush()
+            empty_mcp.close()
+            cmd.extend(["--mcp-config", empty_mcp.name])
         if model:
             cmd.extend(["--model", model])
         cmd.extend(self._args)
