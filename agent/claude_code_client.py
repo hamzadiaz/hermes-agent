@@ -445,6 +445,25 @@ class ClaudeCodeClient:
             child_env.pop(key, None)
         return child_env
 
+    @staticmethod
+    def _extract_mcp_tmp(cmd: list[str]) -> str | None:
+        """Return the --mcp-config path if we injected one, else None."""
+        try:
+            idx = cmd.index("--mcp-config")
+            path = cmd[idx + 1]
+            return path if "hermes_nomcp_" in path else None
+        except (ValueError, IndexError):
+            return None
+
+    @staticmethod
+    def _cleanup_mcp_tmp(path: str | None) -> None:
+        """Delete a temp MCP config file we created, silently ignoring errors."""
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
     def _extract_tool_calls(self, text: str) -> tuple[str | None, list[Any]]:
         content, tool_calls = self._tool_parser.parse(text)
         if not tool_calls and "<tool_call>" in text:
@@ -496,6 +515,7 @@ class ClaudeCodeClient:
         tools: list[dict[str, Any]] | None,
     ) -> dict[str, Any]:
         cmd = self._build_cmd(prompt_text=prompt_text, model=model, stream=False, tools=tools)
+        mcp_tmp = self._extract_mcp_tmp(cmd)
 
         try:
             completed = subprocess.run(
@@ -512,6 +532,8 @@ class ClaudeCodeClient:
                 f"Could not start Claude Code command '{self._command}'. "
                 "Install Claude Code or set HERMES_CLAUDE_CODE_COMMAND/CLAUDE_CLI_PATH."
             ) from exc
+        finally:
+            self._cleanup_mcp_tmp(mcp_tmp)
 
         stdout = (completed.stdout or "").strip()
         stderr = (completed.stderr or "").strip()
@@ -536,6 +558,7 @@ class ClaudeCodeClient:
         tools: list[dict[str, Any]] | None,
     ) -> Iterable[Any]:
         cmd = self._build_cmd(prompt_text=prompt_text, model=model, stream=True, tools=tools)
+        mcp_tmp = self._extract_mcp_tmp(cmd)
         model_name = str(model or "claude-code")
         tool_mode = bool(tools)
 
@@ -550,6 +573,7 @@ class ClaudeCodeClient:
                 bufsize=1,
             )
         except FileNotFoundError as exc:
+            self._cleanup_mcp_tmp(mcp_tmp)
             raise RuntimeError(
                 f"Could not start Claude Code command '{self._command}'. "
                 "Install Claude Code or set HERMES_CLAUDE_CODE_COMMAND/CLAUDE_CLI_PATH."
@@ -802,6 +826,7 @@ class ClaudeCodeClient:
             if process.poll() is None:
                 process.kill()
                 process.wait()
+            self._cleanup_mcp_tmp(mcp_tmp)
 
         if not final_payload:
             final_payload = {
