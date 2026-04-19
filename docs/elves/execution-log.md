@@ -439,3 +439,32 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 
 **Learning added:** L21 — xdist workers sharing same test identity for acquire_scoped_lock cause non-deterministic failures
 
+---
+
+## Scout Batch 11 — Agent Identity Fixes: Codex + Claude SOUL.md (2026-04-19)
+
+**Status:** Complete
+
+**Problem:** Codex agent had Alex's SOUL.md (VP of Growth identity). Claude agent had a generic "You are Hermes Agent" Nous Research identity. User request: "turn codex and claude code into separate agents."
+
+**Fix: `~/.hermes-agents/codex/SOUL.md`**
+- Replaced Alex's full identity with Codex's own identity
+- Role: emergency engineering specialist — debugging, implementation, incident response
+- Matches `personalities.codex` already defined in `~/.hermes-agents/codex/config.yaml`
+- Key rules: "You are Codex. Not GPT. Not an AI assistant. Codex."
+
+**Fix: `~/.hermes-agents/claude/SOUL.md`**
+- Replaced generic Nous Research / "Hermes Agent" identity
+- Role: research and intelligence lead — deep research, synthesis, strategy, long-form writing, complex reasoning
+- Distinct from Hermes (orchestration), Mark (marketing), Codex (engineering), MALIK (growth ops)
+- Key rules: "You are Claude. Not 'Hermes Agent.' Not 'an AI assistant.' Claude."
+
+**Both agents restarted** via `launchctl kickstart -k gui/$(id -u)/ai.hermes.agent.<name>`
+- codex: PID 11427, state=running, last exit=0
+- claude: PID 11432, state=running, last exit=0
+
+**User question: Why didn't Hermes know about overnight work?**
+- Hermes session_search only indexes Hermes's own conversation history (per-agent state.db)
+- Overnight elves work ran inside Claude Code — a separate system with its own memory
+- No cross-contamination expected or needed; they are independent memory spaces
+

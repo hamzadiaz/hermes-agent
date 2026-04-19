@@ -22,10 +22,10 @@ Reason: Open-ended mode active. All 6 planned batches + scout complete. Addition
 ```
 
 ## Current Phase
-SCOUT COMPLETE — All planned work done + scout batch complete. System healthy.
+SCOUT 11 COMPLETE — All planned work done + Scout 11 (agent identity fixes) complete. System healthy.
 
 ## Next Exact Batch
-Scout 11: Full suite is 0 failures (xdist and sequential). Continue hunting:
+Scout 12: All planned work + Scout 11 complete. System healthy. Possible next actions:
 - Any remaining xdist non-deterministic failures (run xdist suite 3x, look for any new flakes)
 - Check agent/claude_code_client.py, agent/curl_cffi_transport.py, agent/litert_lm_client.py (untracked, potentially production code ready to commit)
 - Review remaining untracked files for any that should be committed
