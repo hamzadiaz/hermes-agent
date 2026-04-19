@@ -42,11 +42,13 @@ _ensure_telegram_mock()
 from gateway.platforms.telegram import TelegramAdapter  # noqa: E402
 
 
-def _make_adapter(dm_topics_config=None):
-    """Create a TelegramAdapter with optional DM topics config."""
+def _make_adapter(dm_topics_config=None, topic_bindings_config=None):
+    """Create a TelegramAdapter with optional DM topics and topic_bindings config."""
     extra = {}
     if dm_topics_config is not None:
         extra["dm_topics"] = dm_topics_config
+    if topic_bindings_config is not None:
+        extra["topic_bindings"] = topic_bindings_config
     config = PlatformConfig(enabled=True, token="***", extra=extra)
     adapter = TelegramAdapter(config)
     return adapter
@@ -485,3 +487,63 @@ def test_build_message_event_no_auto_skill_without_thread():
     event = adapter._build_message_event(msg, MessageType.TEXT)
 
     assert event.auto_skill is None
+
+
+def test_build_message_event_group_topic_uses_topic_bindings_skill():
+    """Supergroup topic messages should resolve skill/topic from extra.topic_bindings."""
+    from gateway.platforms.base import MessageType
+
+    adapter = _make_adapter(
+        topic_bindings_config=[
+            {
+                "chat_id": -100123,
+                "topics": [
+                    {"thread_id": 77, "name": "00-command-center", "skill": "fleet-commander-api", "agent": "commander"},
+                ],
+            }
+        ]
+    )
+
+    msg = _make_mock_message(chat_id=-100123, chat_type="supergroup", thread_id=77, text="status")
+    event = adapter._build_message_event(msg, MessageType.TEXT)
+
+    assert event.source.chat_topic == "00-command-center"
+    assert event.auto_skill == "fleet-commander-api"
+
+
+def test_get_topic_binding_info_reloads_from_config(tmp_path):
+    """Missing in-memory topic binding should hot-reload from config.yaml."""
+    import yaml
+
+    config_data = {
+        "platforms": {
+            "telegram": {
+                "extra": {
+                    "topic_bindings": [
+                        {
+                            "chat_id": -100555,
+                            "topics": [
+                                {"thread_id": 13, "name": "06-incidents", "skill": "systematic-debugging"}
+                            ],
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    config_file = tmp_path / ".hermes" / "config.yaml"
+    config_file.parent.mkdir(parents=True)
+    with open(config_file, "w") as f:
+        yaml.dump(config_data, f)
+
+    adapter = _make_adapter()
+    assert adapter._get_topic_binding_info("-100555", "13") is None
+
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch.dict(os.environ, {"HERMES_HOME": str(tmp_path / ".hermes")}):
+        topic = adapter._get_topic_binding_info("-100555", "13")
+
+    assert topic is not None
+    assert topic.get("name") == "06-incidents"
+    assert topic.get("skill") == "systematic-debugging"

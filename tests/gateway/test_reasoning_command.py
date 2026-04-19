@@ -157,6 +157,7 @@ class TestReasoningCommand:
 
         result = asyncio.run(
             runner._run_agent(
+                None,  # event_for_overrides — no runtime overrides in this test
                 message="ping",
                 context_prompt="",
                 history=[],
@@ -206,6 +207,7 @@ class TestReasoningCommand:
 
         result = asyncio.run(
             runner._run_agent(
+                None,  # event_for_overrides — no runtime overrides in this test
                 message="ping",
                 context_prompt="",
                 history=[],
@@ -263,6 +265,7 @@ class TestReasoningCommand:
 
         result = asyncio.run(
             runner._run_agent(
+                None,  # event_for_overrides — no runtime overrides in this test
                 message="ping",
                 context_prompt="",
                 history=[],
@@ -315,6 +318,7 @@ class TestReasoningCommand:
 
         result = asyncio.run(
             runner._run_agent(
+                None,  # event_for_overrides — no runtime overrides in this test
                 message="ping",
                 context_prompt="",
                 history=[],

@@ -11,6 +11,7 @@ import pytest
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import BasePlatformAdapter, SendResult
 from gateway.session import SessionSource
+import tools.terminal_tool  # noqa: F401 — registers terminal emoji in the tool registry
 
 
 class ProgressCaptureAdapter(BasePlatformAdapter):
@@ -114,6 +115,7 @@ async def test_run_agent_progress_stays_in_originating_topic(monkeypatch, tmp_pa
     )
 
     result = await runner._run_agent(
+        None,  # event_for_overrides — no runtime overrides in this test
         message="hello",
         context_prompt="",
         history=[],
@@ -162,6 +164,7 @@ async def test_run_agent_progress_does_not_use_event_message_id_for_telegram_dm(
     )
 
     result = await runner._run_agent(
+        None,  # event_for_overrides — no runtime overrides in this test
         message="hello",
         context_prompt="",
         history=[],
@@ -204,6 +207,7 @@ async def test_run_agent_progress_uses_event_message_id_for_slack_dm(monkeypatch
     )
 
     result = await runner._run_agent(
+        None,  # event_for_overrides — no runtime overrides in this test
         message="hello",
         context_prompt="",
         history=[],

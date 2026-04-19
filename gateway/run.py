@@ -1,3 +1,4 @@
+import functools
 """
 Gateway runner - entry point for messaging platform integrations.
 
@@ -75,6 +76,27 @@ _ensure_ssl_certs()
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
+def _normalize_gateway_text(value: Any) -> str:
+    """Coerce structured provider content into plain text before delivery."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return str(value.get("text", "") or value.get("content", "") or json.dumps(value))
+    if isinstance(value, list):
+        parts: list[str] = []
+        for item in value:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text", "")))
+            elif isinstance(item, dict) and "text" in item:
+                parts.append(str(item["text"]))
+        return "\n".join(p for p in parts if p).strip()
+    return str(value)
 
 # Resolve Hermes home directory (respects HERMES_HOME override)
 from hermes_constants import get_hermes_home
@@ -297,6 +319,7 @@ def _resolve_runtime_agent_kwargs() -> dict:
         "base_url": runtime.get("base_url"),
         "provider": runtime.get("provider"),
         "api_mode": runtime.get("api_mode"),
+        "account_id": runtime.get("account_id", ""),
         "command": runtime.get("command"),
         "args": list(runtime.get("args") or []),
         "credential_pool": runtime.get("credential_pool"),
@@ -379,6 +402,30 @@ def _resolve_gateway_model(config: dict | None = None) -> str:
     elif isinstance(model_cfg, dict):
         return model_cfg.get("default") or model_cfg.get("model") or ""
     return ""
+
+
+def _apply_event_runtime_overrides(event: MessageEvent, model: str, runtime_kwargs: dict) -> tuple[str, dict]:
+    """Apply per-message runtime overrides (e.g. Telegram topic bindings)."""
+    resolved_model = str(getattr(event, "model_override", "") or "").strip() or model
+    resolved_runtime = dict(runtime_kwargs or {})
+
+    provider_override = str(getattr(event, "provider_override", "") or "").strip()
+    base_url_override = str(getattr(event, "base_url_override", "") or "").strip()
+    api_mode_override = str(getattr(event, "api_mode_override", "") or "").strip()
+    api_key_env_override = str(getattr(event, "api_key_env_override", "") or "").strip()
+
+    if provider_override:
+        resolved_runtime["provider"] = provider_override
+    if base_url_override:
+        resolved_runtime["base_url"] = base_url_override
+    if api_mode_override:
+        resolved_runtime["api_mode"] = api_mode_override
+    if api_key_env_override:
+        env_val = os.getenv(api_key_env_override, "")
+        if env_val:
+            resolved_runtime["api_key"] = env_val
+
+    return resolved_model, resolved_runtime
 
 
 def _resolve_hermes_bin() -> Optional[list[str]]:
@@ -787,6 +834,7 @@ class GatewayRunner:
             "base_url": runtime_kwargs.get("base_url"),
             "provider": runtime_kwargs.get("provider"),
             "api_mode": runtime_kwargs.get("api_mode"),
+            "account_id": runtime_kwargs.get("account_id", ""),
             "command": runtime_kwargs.get("command"),
             "args": list(runtime_kwargs.get("args") or []),
             "credential_pool": runtime_kwargs.get("credential_pool"),
@@ -1606,6 +1654,21 @@ class GatewayRunner:
         if not user_id:
             return False
 
+        # Check group-level allowlists (e.g., TELEGRAM_ALLOWED_GROUPS)
+        # If the message comes from an allowed group, authorize regardless of user.
+        platform_group_env_map = {
+            Platform.TELEGRAM: "TELEGRAM_ALLOWED_GROUPS",
+            Platform.DISCORD: "DISCORD_ALLOWED_GROUPS",
+            Platform.SIGNAL: "SIGNAL_ALLOWED_GROUPS",
+        }
+        group_env_var = platform_group_env_map.get(source.platform, "")
+        if group_env_var:
+            allowed_groups = os.getenv(group_env_var, "").strip()
+            if allowed_groups:
+                group_ids = {gid.strip() for gid in allowed_groups.split(",") if gid.strip()}
+                if source.chat_id in group_ids or ("*" in group_ids):
+                    return True
+
         platform_env_map = {
             Platform.TELEGRAM: "TELEGRAM_ALLOWED_USERS",
             Platform.DISCORD: "DISCORD_ALLOWED_USERS",
@@ -2087,6 +2150,7 @@ class GatewayRunner:
                 del self._running_agents[_quick_key]
 
     async def _handle_message_with_agent(self, event, source, _quick_key: str):
+        event_for_overrides = event
         """Inner handler that runs under the _running_agents sentinel guard."""
 
         # Get or create session
@@ -2128,6 +2192,13 @@ class GatewayRunner:
         # If the previous session expired and was auto-reset, prepend a notice
         # so the agent knows this is a fresh conversation (not an intentional /reset).
         if getattr(session_entry, 'was_auto_reset', False):
+            # Auto-reset must invalidate all gateway-owned session-scoped runtime
+            # state just like an explicit /new. Otherwise a cached AIAgent or
+            # Honcho manager from the expired session can bleed stale prompt or
+            # continuity state into this fresh session.
+            self._shutdown_gateway_honcho(session_key)
+            self._evict_cached_agent(session_key)
+
             reset_reason = getattr(session_entry, 'auto_reset_reason', None) or 'idle'
             if reset_reason == "daily":
                 context_note = "[System note: The user's session was automatically reset by the daily schedule. This is a fresh conversation with no prior context.]"
@@ -2168,7 +2239,7 @@ class GatewayRunner:
                             f"Adjust reset timing in config.yaml under session_reset."
                         )
                         try:
-                            session_info = self._format_session_info()
+                            session_info = self._format_session_info(event)
                             if session_info:
                                 notice = f"{notice}\n\n{session_info}"
                         except Exception:
@@ -2639,7 +2710,7 @@ class GatewayRunner:
                     logger.debug("@ context reference expansion failed: %s", exc)
 
             # Run the agent
-            agent_result = await self._run_agent(
+            agent_result = await self._run_agent(event_for_overrides, 
                 message=message_text,
                 context_prompt=context_prompt,
                 history=history,
@@ -2901,12 +2972,15 @@ class GatewayRunner:
             # Clear session env
             self._clear_session_env()
     
-    def _format_session_info(self) -> str:
+    def _format_session_info(self, event: Optional[MessageEvent] = None) -> str:
         """Resolve current model config and return a formatted info block.
 
         Surfaces model, provider, context length, and endpoint so gateway
         users can immediately see if context detection went wrong (e.g.
         local models falling to the 128K default).
+
+        If an event is provided, apply any per-message runtime overrides
+        (such as Telegram topic bindings) before formatting the info block.
         """
         from agent.model_metadata import get_model_context_length, DEFAULT_FALLBACK_CONTEXT
 
@@ -2938,8 +3012,10 @@ class GatewayRunner:
         # Resolve runtime credentials for probing
         try:
             runtime = _resolve_runtime_agent_kwargs()
-            provider = provider or runtime.get("provider")
-            base_url = base_url or runtime.get("base_url")
+            if event is not None:
+                model, runtime = _apply_event_runtime_overrides(event, model, runtime)
+            provider = runtime.get("provider") or provider
+            base_url = runtime.get("base_url") or base_url
             api_key = runtime.get("api_key")
         except Exception:
             pass
@@ -3022,7 +3098,7 @@ class GatewayRunner:
         
         # Resolve session config info to surface to the user
         try:
-            session_info = self._format_session_info()
+            session_info = self._format_session_info(event)
         except Exception:
             session_info = ""
 
@@ -3979,7 +4055,7 @@ class GatewayRunner:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, run_sync)
 
-            response = result.get("final_response", "") if result else ""
+            response = _normalize_gateway_text(result.get("final_response", "")) if result else ""
             if not response and result and result.get("error"):
                 response = f"Error: {result['error']}"
 
@@ -4157,7 +4233,7 @@ class GatewayRunner:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, run_sync)
 
-            response = (result.get("final_response") or "") if result else ""
+            response = _normalize_gateway_text(result.get("final_response")) if result else ""
             if not response and result and result.get("error"):
                 response = f"Error: {result['error']}"
             if not response:
@@ -5271,6 +5347,7 @@ class GatewayRunner:
         runtime: dict,
         enabled_toolsets: list,
         ephemeral_prompt: str,
+        session_id: str,
     ) -> str:
         """Compute a stable string key from agent config values.
 
@@ -5299,6 +5376,7 @@ class GatewayRunner:
                 # reasoning_config excluded — it's set per-message on the
                 # cached agent and doesn't affect system prompt or tools.
                 ephemeral_prompt or "",
+                session_id or "",
             ],
             sort_keys=True,
             default=str,
@@ -5312,8 +5390,7 @@ class GatewayRunner:
             with _lock:
                 self._agent_cache.pop(session_key, None)
 
-    async def _run_agent(
-        self,
+    async def _run_agent(self, event_for_overrides,
         message: str,
         context_prompt: str,
         history: List[Dict[str, Any]],
@@ -5366,26 +5443,36 @@ class GatewayRunner:
         )
         tool_progress_enabled = progress_mode != "off"
         
-        # Queue for progress messages (thread-safe)
-        progress_queue = queue.Queue() if tool_progress_enabled else None
-        last_tool = [None]  # Mutable container for tracking in closure
-        last_progress_msg = [None]  # Track last message for dedup
-        repeat_count = [0]  # How many times the same message repeated
-        
+        # Progress state — shared between the thread-pool callback and the
+        # async coroutines it schedules via run_coroutine_threadsafe.
+        # All mutations of _prog_* happen inside the event loop (never from
+        # the thread directly), so no extra lock is needed.
+        _prog_adapter = self.adapters.get(source.platform) if tool_progress_enabled else None
+        _prog_lines: list[str] = []
+        _prog_msg_id: list[str | None] = [None]
+        _prog_can_edit: list[bool] = [True]
+        last_tool = [None]
+        last_progress_msg = [None]
+        repeat_count = [0]
+
         def progress_callback(tool_name: str, preview: str = None, args: dict = None):
-            """Callback invoked by agent when a tool is called."""
-            if not progress_queue:
+            """Callback invoked by agent when a tool is called.
+
+            Bridges from the thread-pool worker to the event loop via
+            run_coroutine_threadsafe — resilient to asyncio-task cancellation.
+            """
+            if not _prog_adapter:
                 return
-            
+
             # "new" mode: only report when tool changes
             if progress_mode == "new" and tool_name == last_tool[0]:
                 return
             last_tool[0] = tool_name
-            
+
             # Build progress message with primary argument preview
             from agent.display import get_tool_emoji
             emoji = get_tool_emoji(tool_name, default="⚙️")
-            
+
             # Verbose mode: show detailed arguments
             if progress_mode == "verbose" and args:
                 import json as _json
@@ -5393,11 +5480,7 @@ class GatewayRunner:
                 if len(args_str) > 200:
                     args_str = args_str[:197] + "..."
                 msg = f"{emoji} {tool_name}({list(args.keys())})\n{args_str}"
-                progress_queue.put(msg)
-                return
-            
-            if preview:
-                # Truncate preview unless config says unlimited
+            elif preview:
                 from agent.display import get_tool_preview_max_len
                 _pl = get_tool_preview_max_len()
                 if _pl > 0 and len(preview) > _pl:
@@ -5405,20 +5488,67 @@ class GatewayRunner:
                 msg = f"{emoji} {tool_name}: \"{preview}\""
             else:
                 msg = f"{emoji} {tool_name}..."
-            
+
             # Dedup: collapse consecutive identical progress messages.
-            # Common with execute_code where models iterate with the same
-            # code (same boilerplate imports → identical previews).
             if msg == last_progress_msg[0]:
                 repeat_count[0] += 1
-                # Update the last line in progress_lines with a counter
-                # via a special "dedup" queue message.
-                progress_queue.put(("__dedup__", msg, repeat_count[0]))
+                _dedup_count = repeat_count[0]
+                async def _update_dedup(_m=msg, _c=_dedup_count):
+                    if _prog_lines:
+                        _prog_lines[-1] = f"{_m} (×{_c + 1})"
+                        if _prog_can_edit[0] and _prog_msg_id[0]:
+                            try:
+                                await _prog_adapter.edit_message(
+                                    chat_id=source.chat_id,
+                                    message_id=_prog_msg_id[0],
+                                    content="\n".join(_prog_lines),
+                                )
+                            except Exception:
+                                pass
+                try:
+                    asyncio.run_coroutine_threadsafe(_update_dedup(), _loop_for_step)
+                except Exception as _e:
+                    logger.debug("progress dedup error: %s", _e)
                 return
             last_progress_msg[0] = msg
             repeat_count[0] = 0
-            
-            progress_queue.put(msg)
+
+            async def _deliver(_line=msg):
+                _prog_lines.append(_line)
+                full_text = "\n".join(_prog_lines)
+                try:
+                    if _prog_can_edit[0] and _prog_msg_id[0]:
+                        result = await _prog_adapter.edit_message(
+                            chat_id=source.chat_id,
+                            message_id=_prog_msg_id[0],
+                            content=full_text,
+                        )
+                        if not result.success:
+                            _prog_can_edit[0] = False
+                            await _prog_adapter.send(
+                                chat_id=source.chat_id,
+                                content=_line,
+                                metadata=_progress_metadata,
+                            )
+                    else:
+                        result = await _prog_adapter.send(
+                            chat_id=source.chat_id,
+                            content=full_text,
+                            metadata=_progress_metadata,
+                        )
+                        if result.success and result.message_id:
+                            _prog_msg_id[0] = result.message_id
+                    await _prog_adapter.send_typing(source.chat_id, metadata=_progress_metadata)
+                except Exception as _e:
+                    logger.debug("progress deliver error: %s", _e)
+            try:
+                asyncio.run_coroutine_threadsafe(_deliver(), _loop_for_step)
+            except Exception as _e:
+                logger.debug("progress_callback error: %s", _e)
+
+        # progress_queue kept as None — no longer used; asyncio task below
+        # is a no-op placeholder so the rest of _run_agent is unchanged.
+        progress_queue = None
         
         # Background task to send progress messages
         # Accumulates tool lines into a single message that gets edited.
@@ -5564,6 +5694,7 @@ class GatewayRunner:
             except Exception as _e:
                 logger.debug("status_callback error (%s): %s", event_type, _e)
 
+        event_for_overrides = event_for_overrides
         def run_sync():
             # Pass session_key to process registry via env var so background
             # processes can be mapped back to this gateway session
@@ -5601,6 +5732,8 @@ class GatewayRunner:
                     "api_calls": 0,
                     "tools": [],
                 }
+
+            model, runtime_kwargs = _apply_event_runtime_overrides(event_for_overrides, model, runtime_kwargs)
 
             pr = self._provider_routing
             honcho_manager, honcho_config = self._get_or_create_gateway_honcho(session_key)
@@ -5645,6 +5778,7 @@ class GatewayRunner:
                 turn_route["runtime"],
                 enabled_toolsets,
                 combined_ephemeral,
+                session_id,
             )
             agent = None
             _cache_lock = getattr(self, "_agent_cache_lock", None)
@@ -5827,7 +5961,7 @@ class GatewayRunner:
                 _stream_consumer.finish()
             
             # Return final response, or a message if something went wrong
-            final_response = result.get("final_response")
+            final_response = _normalize_gateway_text(result.get("final_response"))
 
             # Extract actual token counts from the agent instance used for this run
             _last_prompt_toks = 0
@@ -6086,6 +6220,7 @@ class GatewayRunner:
                 # Process the pending message with updated history
                 updated_history = result.get("messages", history)
                 return await self._run_agent(
+                    event_for_overrides,
                     message=pending,
                     context_prompt=context_prompt,
                     history=updated_history,
@@ -6093,6 +6228,7 @@ class GatewayRunner:
                     session_id=session_id,
                     session_key=session_key,
                     _interrupt_depth=_interrupt_depth + 1,
+                    event_message_id=event_message_id,
                 )
         finally:
             # Stop progress sender and interrupt monitor

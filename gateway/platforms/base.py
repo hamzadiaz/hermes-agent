@@ -342,6 +342,13 @@ class MessageEvent:
     
     # Auto-loaded skill for topic/channel bindings (e.g., Telegram DM Topics)
     auto_skill: Optional[str] = None
+
+    # Optional per-topic runtime overrides (Telegram topic bindings, etc.)
+    model_override: Optional[str] = None
+    provider_override: Optional[str] = None
+    base_url_override: Optional[str] = None
+    api_mode_override: Optional[str] = None
+    api_key_env_override: Optional[str] = None
     
     # Timestamps
     timestamp: datetime = field(default_factory=datetime.now)
@@ -767,7 +774,7 @@ class BasePlatformAdapter(ABC):
     @staticmethod
     def extract_media(content: str) -> Tuple[List[Tuple[str, bool]], str]:
         """
-        Extract MEDIA:<path> tags and [[audio_as_voice]] directives from response text.
+        Extract MEDIA:<path> or SENDFILE:<path> tags and [[audio_as_voice]] directives from response text.
         
         The TTS tool returns responses like:
             [[audio_as_voice]]
@@ -786,10 +793,10 @@ class BasePlatformAdapter(ABC):
         has_voice_tag = "[[audio_as_voice]]" in content
         cleaned = cleaned.replace("[[audio_as_voice]]", "")
         
-        # Extract MEDIA:<path> tags, allowing optional whitespace after the colon
+        # Extract MEDIA:/SENDFILE:<path> tags, allowing optional whitespace after the colon
         # and quoted/backticked paths for LLM-formatted outputs.
         media_pattern = re.compile(
-            r'''[`"']?MEDIA:\s*(?P<path>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|(?:~/|/)\S+(?:[^\S\n]+\S+)*?\.(?:png|jpe?g|gif|webp|mp4|mov|avi|mkv|webm|ogg|opus|mp3|wav|m4a)(?=[\s`"',;:)\]}]|$)|\S+)[`"']?'''
+            r'''[`"']?(?:MEDIA|SENDFILE):\s*(?P<path>`[^`\n]+`|"[^"\n]+"|'[^'\n]+'|(?:~/|/)\S+(?:[^\S\n]+\S+)*?\.(?:png|jpe?g|gif|webp|mp4|mov|avi|mkv|webm|ogg|opus|mp3|wav|m4a)(?=[\s`"',;:)\]}]|$)|\S+)[`"']?'''
         )
         for match in media_pattern.finditer(content):
             path = match.group("path").strip()
@@ -799,7 +806,7 @@ class BasePlatformAdapter(ABC):
             if path:
                 media.append((path, has_voice_tag))
 
-        # Remove MEDIA tags from content (including surrounding quote/backtick wrappers)
+        # Remove MEDIA/SENDFILE tags from content (including surrounding quote/backtick wrappers)
         if media:
             cleaned = media_pattern.sub('', cleaned)
             cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
@@ -1110,14 +1117,14 @@ class BasePlatformAdapter(ABC):
             if not response:
                 logger.warning("[%s] Handler returned empty/None response for %s", self.name, event.source.chat_id)
             if response:
-                # Extract MEDIA:<path> tags (from TTS tool) before other processing
+                # Extract MEDIA:/SENDFILE:<path> tags (from TTS tool) before other processing
                 media_files, response = self.extract_media(response)
                 
                 # Extract image URLs and send them as native platform attachments
                 images, text_content = self.extract_images(response)
                 # Strip any remaining internal directives from message body (fixes #1561)
                 text_content = text_content.replace("[[audio_as_voice]]", "").strip()
-                text_content = re.sub(r"MEDIA:\s*\S+", "", text_content).strip()
+                text_content = re.sub(r"(?:MEDIA|SENDFILE):\s*\S+", "", text_content).strip()
                 if images:
                     logger.info("[%s] extract_images found %d image(s) in response (%d chars)", self.name, len(images), len(response))
 

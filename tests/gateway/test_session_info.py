@@ -5,6 +5,8 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from gateway.run import GatewayRunner
+from gateway.platforms.base import MessageEvent, SessionSource
+from gateway.platforms.base import Platform
 
 
 @pytest.fixture()
@@ -108,3 +110,22 @@ class TestFormatSessionInfo:
             info = runner._format_session_info()
         assert "4K" in info
         assert "config" in info
+
+    def test_event_overrides_model_and_provider(self, runner, tmp_path):
+        p1, p2, p3 = _patch_info(
+            tmp_path,
+            "model:\n  default: gpt-5.4\n  provider: openai-codex\n",
+            "gpt-5.4",
+            {"provider": "openai-codex", "base_url": "https://chatgpt.com/backend-api/codex", "api_key": "codex-key"},
+        )
+        event = MessageEvent(
+            text="/reset",
+            source=SessionSource(platform=Platform.TELEGRAM, chat_id="-1003680188647", chat_type="group"),
+            model_override="gemini-3.1-pro-preview",
+            provider_override="custom",
+            base_url_override="https://generativelanguage.googleapis.com/v1beta/openai",
+        )
+        with p1, p2, p3:
+            info = runner._format_session_info(event)
+        assert "gemini-3.1-pro-preview" in info
+        assert "custom" in info

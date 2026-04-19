@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import queue
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -26,6 +27,7 @@ logger = logging.getLogger("gateway.stream_consumer")
 
 # Sentinel to signal the stream is complete
 _DONE = object()
+_MEDIA_RE = re.compile(r"(?:MEDIA|SENDFILE):\s*\S+")
 
 
 @dataclass
@@ -159,6 +161,8 @@ class GatewayStreamConsumer:
     async def _send_or_edit(self, text: str) -> None:
         """Send or edit the streaming message."""
         try:
+            if _MEDIA_RE.search(text):
+                return
             if self._message_id is not None:
                 if self._edit_supported:
                     # Skip if text is identical to what we last sent

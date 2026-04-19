@@ -147,6 +147,22 @@ class TelegramAdapter(BasePlatformAdapter):
         self._dm_topics: Dict[str, int] = {}
         # DM Topics config from extra.dm_topics
         self._dm_topics_config: List[Dict[str, Any]] = self.config.extra.get("dm_topics", [])
+        # Generic topic bindings for supergroups/channels (extra.topic_bindings)
+        # key: "{chat_id}:{thread_id}" -> {name, skill, agent, ...}
+        self._topic_bindings: Dict[str, Dict[str, Any]] = {}
+        self._topic_bindings_config: List[Dict[str, Any]] = self.config.extra.get("topic_bindings", [])
+        for chat_entry in self._topic_bindings_config:
+            chat_id = chat_entry.get("chat_id") if isinstance(chat_entry, dict) else None
+            topics = chat_entry.get("topics", []) if isinstance(chat_entry, dict) else []
+            if not chat_id or not isinstance(topics, list):
+                continue
+            for topic in topics:
+                if not isinstance(topic, dict):
+                    continue
+                thread_id = topic.get("thread_id")
+                if not thread_id:
+                    continue
+                self._topic_bindings[f"{chat_id}:{thread_id}"] = topic
 
     def _fallback_ips(self) -> list[str]:
         """Return validated fallback IPs from config (populated by _apply_env_overrides)."""
@@ -1403,6 +1419,19 @@ class TelegramAdapter(BasePlatformAdapter):
             return {str(part).strip() for part in raw if str(part).strip()}
         return {part.strip() for part in str(raw).split(",") if part.strip()}
 
+    def _telegram_allowed_dm_users(self) -> set[str]:
+        """Return set of user IDs allowed to DM the bot privately.
+
+        When the set is non-empty, only those users may chat in DMs.
+        An empty set means DMs are unrestricted (backwards-compatible).
+        """
+        raw = self.config.extra.get("allowed_dm_users")
+        if raw is None:
+            raw = os.getenv("TELEGRAM_ALLOWED_DM_USERS", "")
+        if isinstance(raw, list):
+            return {str(part).strip() for part in raw if str(part).strip()}
+        return {part.strip() for part in str(raw).split(",") if part.strip()}
+
     def _compile_mention_patterns(self) -> List[re.Pattern]:
         """Compile optional regex wake-word patterns for group triggers."""
         patterns = self.config.extra.get("mention_patterns")
@@ -1502,9 +1531,10 @@ class TelegramAdapter(BasePlatformAdapter):
         return cleaned or text
 
     def _should_process_message(self, message: Message, *, is_command: bool = False) -> bool:
-        """Apply Telegram group trigger rules.
+        """Apply Telegram trigger rules for DMs and groups.
 
-        DMs remain unrestricted. Group/supergroup messages are accepted when:
+        DMs are restricted to ``allowed_dm_users`` when configured (empty = unrestricted).
+        Group/supergroup messages are accepted when:
         - the chat is explicitly allowlisted in ``free_response_chats``
         - ``require_mention`` is disabled
         - the message is a command
@@ -1513,6 +1543,11 @@ class TelegramAdapter(BasePlatformAdapter):
         - the text/caption matches a configured regex wake-word pattern
         """
         if not self._is_group_chat(message):
+            allowed = self._telegram_allowed_dm_users()
+            if allowed:
+                user_id = str(getattr(getattr(message, "from_user", None), "id", ""))
+                if user_id not in allowed:
+                    return False
             return True
         if str(getattr(getattr(message, "chat", None), "id", "")) in self._telegram_free_response_chats():
             return True
@@ -2016,6 +2051,71 @@ class TelegramAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.debug("[%s] Failed to reload dm_topics from config: %s", self.name, e)
 
+    def _reload_topic_bindings_from_config(self) -> None:
+        """Reload extra.topic_bindings and rebuild fast thread lookup cache.
+
+        Config shape:
+          topic_bindings:
+            - chat_id: -1001234567890
+              topics:
+                - thread_id: 77
+                  name: 00-command-center
+                  skill: fleet-commander-api
+                  agent: commander
+        """
+        try:
+            import yaml
+            from hermes_constants import get_hermes_home
+
+            config_path = get_hermes_home() / "config.yaml"
+            if not config_path.exists():
+                return
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+
+            topic_bindings = (
+                data.get("platforms", {})
+                .get("telegram", {})
+                .get("extra", {})
+                .get("topic_bindings", [])
+            )
+
+            if not isinstance(topic_bindings, list):
+                return
+
+            self._topic_bindings_config = topic_bindings
+            self._topic_bindings = {}
+
+            for chat_entry in topic_bindings:
+                chat_id = chat_entry.get("chat_id")
+                topics = chat_entry.get("topics", [])
+                if not chat_id or not isinstance(topics, list):
+                    continue
+
+                for topic in topics:
+                    thread_id = topic.get("thread_id")
+                    if not thread_id:
+                        continue
+                    key = f"{chat_id}:{thread_id}"
+                    self._topic_bindings[key] = topic
+        except Exception as e:
+            logger.debug("[%s] Failed to reload topic_bindings from config: %s", self.name, e)
+
+    def _get_topic_binding_info(self, chat_id: str, thread_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Look up generic topic binding for any chat type by (chat_id, thread_id)."""
+        if not thread_id:
+            return None
+
+        key = f"{chat_id}:{thread_id}"
+        topic = self._topic_bindings.get(key)
+        if topic:
+            return topic
+
+        # Hot reload config in case bindings changed while gateway is running.
+        self._reload_topic_bindings_from_config()
+        return self._topic_bindings.get(key)
+
     def _get_dm_topic_info(self, chat_id: str, thread_id: Optional[str]) -> Optional[Dict[str, Any]]:
         """Look up DM topic config by chat_id and thread_id.
 
@@ -2077,23 +2177,40 @@ class TelegramAdapter(BasePlatformAdapter):
         elif chat.type == ChatType.CHANNEL:
             chat_type = "channel"
 
-        # Resolve DM topic name and skill binding
+        # Resolve topic name/skill binding from DM topics and generic topic_bindings.
         thread_id_raw = message.message_thread_id
         thread_id_str = str(thread_id_raw) if thread_id_raw else None
         chat_topic = None
         topic_skill = None
+        topic_model = None
+        topic_provider = None
+        topic_base_url = None
+        topic_api_mode = None
+        topic_api_key_env = None
 
-        if chat_type == "dm" and thread_id_str:
-            topic_info = self._get_dm_topic_info(str(chat.id), thread_id_str)
+        if thread_id_str:
+            topic_info = None
+            if chat_type == "dm":
+                topic_info = self._get_dm_topic_info(str(chat.id), thread_id_str)
+
+            if not topic_info:
+                topic_info = self._get_topic_binding_info(str(chat.id), thread_id_str)
+
             if topic_info:
                 chat_topic = topic_info.get("name")
                 topic_skill = topic_info.get("skill")
+                topic_model = topic_info.get("model")
+                topic_provider = topic_info.get("provider")
+                topic_base_url = topic_info.get("base_url")
+                topic_api_mode = topic_info.get("api_mode")
+                topic_api_key_env = topic_info.get("api_key_env")
 
-            # Also check forum_topic_created service message for topic discovery
+            # Also check forum_topic_created service message for topic discovery.
             if hasattr(message, "forum_topic_created") and message.forum_topic_created:
                 created_name = message.forum_topic_created.name
                 if created_name:
-                    self._cache_dm_topic_from_message(str(chat.id), thread_id_str, created_name)
+                    if chat_type == "dm":
+                        self._cache_dm_topic_from_message(str(chat.id), thread_id_str, created_name)
                     if not chat_topic:
                         chat_topic = created_name
 
@@ -2124,5 +2241,10 @@ class TelegramAdapter(BasePlatformAdapter):
             reply_to_message_id=reply_to_id,
             reply_to_text=reply_to_text,
             auto_skill=topic_skill,
+            model_override=topic_model,
+            provider_override=topic_provider,
+            base_url_override=topic_base_url,
+            api_mode_override=topic_api_mode,
+            api_key_env_override=topic_api_key_env,
             timestamp=message.date,
         )
