@@ -73,6 +73,7 @@ class TestBuildApiKwargsOpenRouter:
 
     def test_includes_reasoning_in_extra_body(self, monkeypatch):
         agent = _make_agent(monkeypatch, "openrouter")
+        agent.model = "anthropic/claude-opus-4-7"
         messages = [{"role": "user", "content": "hi"}]
         kwargs = agent._build_api_kwargs(messages)
         extra = kwargs.get("extra_body", {})
@@ -654,7 +655,7 @@ class TestAuxiliaryClientProviderPriority:
              patch("agent.auxiliary_client._read_codex_access_token", return_value="codex-tok"), \
              patch("agent.auxiliary_client.OpenAI"):
             client, model = get_text_auxiliary_client()
-        assert model == "gpt-5.2-codex"
+        assert model == "gpt-5.4"
         assert isinstance(client, CodexAuxiliaryClient)
 
 
@@ -798,6 +799,7 @@ class TestReasoningEffortDefaults:
 
     def test_openrouter_default_medium(self, monkeypatch):
         agent = _make_agent(monkeypatch, "openrouter")
+        agent.model = "anthropic/claude-opus-4-7"
         kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
         reasoning = kwargs["extra_body"]["reasoning"]
         assert reasoning["effort"] == "medium"
@@ -825,6 +827,7 @@ class TestReasoningEffortDefaults:
 
     def test_openrouter_reasoning_config_override(self, monkeypatch):
         agent = _make_agent(monkeypatch, "openrouter")
+        agent.model = "anthropic/claude-opus-4-7"
         agent.reasoning_config = {"enabled": True, "effort": "medium"}
         kwargs = agent._build_api_kwargs([{"role": "user", "content": "hi"}])
         assert kwargs["extra_body"]["reasoning"]["effort"] == "medium"

@@ -1037,6 +1037,61 @@ class TestBuildAnthropicKwargs:
         )
         assert kwargs["max_tokens"] == 64_000
 
+    def test_oauth_preserves_memory_guidance_block(self):
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You have persistent memory across sessions. Save durable facts using the memory tool.\n"
+                    "When the user references something from a past conversation or you suspect relevant "
+                    "cross-session context exists, use session_search to recall it before asking them to repeat themselves.\n"
+                    "After completing a complex task (5+ tool calls), fixing a tricky error, or discovering "
+                    "a non-trivial workflow, save the approach as a skill with skill_manage so you can reuse it next time.\n"
+                    "When using a skill and finding it outdated, incomplete, or wrong, patch it immediately "
+                    "with skill_manage(action='patch') — don't wait to be asked. Skills that aren't maintained become liabilities."
+                ),
+            },
+            {"role": "user", "content": "Hi"},
+        ]
+        kwargs = build_anthropic_kwargs(
+            model="claude-sonnet-4-6",
+            messages=messages,
+            tools=None,
+            max_tokens=4096,
+            reasoning_config=None,
+            is_oauth=True,
+        )
+        system_text = "\n".join(block["text"] for block in kwargs["system"] if block.get("type") == "text")
+        assert "You have persistent memory across sessions." in system_text
+        assert "use session_search to recall it" in system_text
+        assert "Skills that aren't maintained become liabilities." in system_text
+
+    def test_oauth_still_strips_skills_mandatory_block(self):
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Prelude\n\n"
+                    "## Skills (mandatory)\n"
+                    "huge skill bundle text\n"
+                    "Only proceed without loading a skill if genuinely none are relevant to the task.\n\n"
+                    "Postlude"
+                ),
+            },
+            {"role": "user", "content": "Hi"},
+        ]
+        kwargs = build_anthropic_kwargs(
+            model="claude-sonnet-4-6",
+            messages=messages,
+            tools=None,
+            max_tokens=4096,
+            reasoning_config=None,
+            is_oauth=True,
+        )
+        system_text = "\n".join(block["text"] for block in kwargs["system"] if block.get("type") == "text")
+        assert "## Skills (mandatory)" not in system_text
+        assert "Postlude" in system_text
+
 
 # ---------------------------------------------------------------------------
 # Model output limit lookup

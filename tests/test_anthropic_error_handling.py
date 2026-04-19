@@ -187,6 +187,7 @@ def _run_with_agent(monkeypatch, agent_cls):
 
     return asyncio.run(
         runner._run_agent(
+            None,
             message="hello",
             context_prompt="",
             history=[],
@@ -319,6 +320,7 @@ def test_401_credential_refresh_recovers(monkeypatch):
 
     result = asyncio.run(
         runner._run_agent(
+            None,
             message="hello", context_prompt="", history=[],
             source=source, session_id="session-401",
             session_key="agent:main:local:dm",
@@ -392,6 +394,7 @@ def test_401_refresh_fails_is_non_retryable(monkeypatch):
 
     result = asyncio.run(
         runner._run_agent(
+            None,
             message="hello", context_prompt="", history=[],
             source=source, session_id="session-401-fail",
             session_key="agent:main:local:dm",
@@ -480,6 +483,7 @@ def test_prompt_too_long_triggers_compression(monkeypatch):
 
     result = asyncio.run(
         runner._run_agent(
+            None,
             message="hello", context_prompt="", history=[],
             source=source, session_id="session-prompt-long",
             session_key="agent:main:local:dm",

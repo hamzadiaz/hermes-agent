@@ -168,6 +168,27 @@ def _install_safe_stdio() -> None:
             setattr(sys, stream_name, _SafeWriter(stream))
 
 
+def _normalize_assistant_content(content: Any) -> str:
+    """Coerce provider-specific assistant content blocks into plain text."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        return str(content.get("text", "") or content.get("content", "") or json.dumps(content))
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and part.get("type") == "text":
+                parts.append(str(part.get("text", "")))
+            elif isinstance(part, dict) and "text" in part:
+                parts.append(str(part["text"]))
+        return "\n".join(p for p in parts if p).strip()
+    return str(content)
+
+
 class IterationBudget:
     """Thread-safe iteration counter for an agent.
 
@@ -366,6 +387,34 @@ def _inject_honcho_turn_context(content, turn_context: str):
     return f"{text}\n\n{note}"
 
 
+_RECENCY_RECALL_PATTERNS = [
+    r"\bwhat were we (?:just )?working on\b",
+    r"\bwhat did we just discuss\b",
+    r"\bwhat (?:was|is) .*latest issue\b",
+    r"\bwhere are we\b",
+    r"\bwhere did we leave off\b",
+    r"\bverification only\b",
+    r"\bmost recent relevant conversation\b",
+]
+
+
+def _build_recency_recall_hint(user_message: str, available_tools: set[str]) -> str:
+    """Return a turn-scoped hint for recency/continuity questions."""
+    if "session_search" not in (available_tools or set()):
+        return ""
+    text = (user_message or "").strip().lower()
+    if not text:
+        return ""
+    if not any(re.search(pattern, text) for pattern in _RECENCY_RECALL_PATTERNS):
+        return ""
+    return (
+        "[Recency recall hint] This looks like a latest/continuity question. "
+        "Start with session_search in recent-sessions mode (omit the query) to browse the most recent sessions first. "
+        "Answer from the most recent relevant session/transcript context, and use long-term memory or Honcho only as supporting background. "
+        "Do not broaden into older backlog unless the user explicitly asks for history."
+    )
+
+
 # Budget warning text patterns injected by _get_budget_warning().
 _BUDGET_WARNING_RE = re.compile(
     r"\[BUDGET(?:\s+WARNING)?:\s+Iteration\s+\d+/\d+\..*?\]",
@@ -513,6 +562,7 @@ class AIAgent:
         iteration_budget: "IterationBudget" = None,
         fallback_model: Dict[str, Any] = None,
         credential_pool=None,
+        account_id: str = None,
         checkpoints_enabled: bool = False,
         checkpoint_max_snapshots: int = 50,
         pass_session_id: bool = False,
@@ -822,6 +872,12 @@ class AIAgent:
                 if self.provider == "copilot-acp":
                     client_kwargs["command"] = self.acp_command
                     client_kwargs["args"] = self.acp_args
+                elif self.provider == "claude-code":
+                    client_kwargs["command"] = self.acp_command
+                    client_kwargs["args"] = self.acp_args
+                elif self.provider == "litert-lm":
+                    client_kwargs["command"] = self.acp_command
+                    client_kwargs["args"] = self.acp_args
                 effective_base = base_url
                 if "openrouter" in effective_base.lower():
                     client_kwargs["default_headers"] = {
@@ -836,6 +892,11 @@ class AIAgent:
                 elif "api.kimi.com" in effective_base.lower():
                     client_kwargs["default_headers"] = {
                         "User-Agent": "KimiCLI/1.3",
+                    }
+                elif account_id and ("openai.com" in effective_base.lower() or "chatgpt.com" in effective_base.lower()):
+                    client_kwargs["default_headers"] = {
+                        "User-Agent": "OpenAI Codex v0.118.0",
+                        "ChatGPT-Account-Id": account_id,
                     }
             else:
                 # No explicit creds — use the centralized provider router
@@ -1386,6 +1447,29 @@ class AIAgent:
 
         # Check if there's any non-whitespace content remaining
         return bool(cleaned.strip())
+
+    @staticmethod
+    def _is_post_response_housekeeping_turn(tool_calls: Optional[List[Any]]) -> bool:
+        """Return True when every tool call is lightweight housekeeping.
+
+        Mixed content+tool turns are valid for housekeeping follow-ups like
+        memory/todo/session_search/skill_manage. For substantive tool work
+        (terminal, search_files, write_file, browser_*, etc.) assistant free-text
+        on the same turn is often speculative progress chatter and should not be
+        persisted into history, or it can poison later turns.
+        """
+        if not tool_calls:
+            return False
+
+        housekeeping_tools = {
+            "memory", "todo", "skill_manage", "session_search",
+        }
+        for tc in tool_calls:
+            fn = getattr(tc, "function", None)
+            name = getattr(fn, "name", None)
+            if name not in housekeeping_tools:
+                return False
+        return True
     
     def _strip_think_blocks(self, content: str) -> str:
         """Remove reasoning/thinking blocks from content, returning only visible text."""
@@ -2287,15 +2371,28 @@ class AIAgent:
         Recover todo state from conversation history.
         
         The gateway creates a fresh AIAgent per message, so the in-memory
-        TodoStore is empty. We scan the history for the most recent todo
-        tool response and replay it to reconstruct the state.
+        TodoStore is empty. We first look for the newest machine-readable
+        compaction snapshot, then fall back to the newest todo tool response.
         """
-        # Walk history backwards to find the most recent todo tool response
+        # Walk history backwards to find the newest todo state, preferring
+        # post-compaction TODO_SNAPSHOT payloads because the original tool
+        # response may have been summarized away.
         last_todo_response = None
         for msg in reversed(history):
+            content = msg.get("content", "")
+
+            if msg.get("role") == "user" and "[TODO_SNAPSHOT]" in content:
+                try:
+                    snapshot = content.split("[TODO_SNAPSHOT]", 1)[1].split("[/TODO_SNAPSHOT]", 1)[0].strip()
+                    data = json.loads(snapshot)
+                    if "todos" in data and isinstance(data["todos"], list):
+                        last_todo_response = data["todos"]
+                        break
+                except (IndexError, json.JSONDecodeError, TypeError):
+                    pass
+
             if msg.get("role") != "tool":
                 continue
-            content = msg.get("content", "")
             # Quick check: todo responses contain "todos" key
             if '"todos"' not in content:
                 continue
@@ -2496,9 +2593,11 @@ class AIAgent:
                 return ""
             header = (
                 "# Honcho Memory (persistent cross-session context)\n"
-                "Use this to answer questions about the user, prior sessions, "
-                "and what you were working on together. Do not call tools to "
-                "look up information that is already present here.\n"
+                "Use this as supporting background for questions about the user, prior sessions, "
+                "and ongoing work. For recency questions such as what you were just working on, "
+                "where you left off, or the latest issue under discussion, prioritize the most recent "
+                "relevant transcript/session context first. Use Honcho to supplement broader history, "
+                "not to override recent session recall.\n"
             )
             return header + "\n\n".join(parts)
         except Exception as e:
@@ -2638,8 +2737,10 @@ class AIAgent:
                 honcho_block += (
                     "Honcho context is injected into this system prompt below. "
                     "All memory retrieval comes from this context — no Honcho tools "
-                    "are available. Answer questions about the user, prior sessions, "
-                    "and recent work directly from the Honcho Memory section.\n"
+                    "are available. Use it as supporting continuity context. For recency "
+                    "questions about what you were just doing or the latest issue, prioritize "
+                    "the most recent relevant transcript/session context over broad Honcho "
+                    "history.\n"
                 )
             elif recall_mode == "tools":
                 honcho_block += (
@@ -2652,10 +2753,11 @@ class AIAgent:
             else:  # hybrid
                 honcho_block += (
                     "Honcho context (user representation, peer card, and recent session summary) "
-                    "is injected into this system prompt below. Use it to answer continuity "
-                    "questions ('where were we?', 'what were we working on?') WITHOUT calling "
-                    "any tools. Only call Honcho tools when you need information beyond what is "
-                    "already present in the Honcho Memory section.\n"
+                    "is injected into this system prompt below as supporting continuity context. "
+                    "For recency questions ('where were we?', 'what were we just working on?', "
+                    "'what is the latest issue?'), prioritize the most recent relevant transcript/session "
+                    "context first instead of defaulting to broad Honcho summaries. Only call Honcho tools "
+                    "when you need information beyond what is already present in the Honcho Memory section.\n"
                     "Honcho tools:\n"
                     "  honcho_context <question>           — ask Honcho a question, LLM-synthesized answer\n"
                     "  honcho_search <query>                   — semantic search, raw excerpts, no LLM\n"
@@ -3537,7 +3639,36 @@ class AIAgent:
                 self._client_log_context(),
             )
             return client
-        client = OpenAI(**client_kwargs)
+        if self.provider == "claude-code" or str(client_kwargs.get("base_url", "")).startswith("cli://claude-code"):
+            from agent.claude_code_client import ClaudeCodeClient
+
+            client = ClaudeCodeClient(**client_kwargs)
+            logger.info(
+                "Claude Code client created (%s, shared=%s) %s",
+                reason,
+                shared,
+                self._client_log_context(),
+            )
+            return client
+        if self.provider == "litert-lm" or str(client_kwargs.get("base_url", "")).startswith("cli://litert-lm"):
+            from agent.litert_lm_client import LiteRtLmClient
+
+            client = LiteRtLmClient(**client_kwargs)
+            logger.info(
+                "LiteRT-LM client created (%s, shared=%s) %s",
+                reason,
+                shared,
+                self._client_log_context(),
+            )
+            return client
+        if self.provider == "openai-codex":
+            import httpx
+            from agent.curl_cffi_transport import CurlCffiTransport
+            kw = dict(client_kwargs)
+            kw["http_client"] = httpx.Client(transport=CurlCffiTransport(impersonate="chrome131"))
+            client = OpenAI(**kw)
+        else:
+            client = OpenAI(**client_kwargs)
         logger.info(
             "OpenAI client created (%s, shared=%s) %s",
             reason,
@@ -3756,6 +3887,7 @@ class AIAgent:
         self._reasoning_deltas_fired = False
         for attempt in range(max_stream_retries + 1):
             try:
+                _collected_output_items = []
                 with active_client.responses.stream(**api_kwargs) as stream:
                     for event in stream:
                         if self._interrupt_requested:
@@ -3781,7 +3913,21 @@ class AIAgent:
                             reasoning_text = getattr(event, "delta", "")
                             if reasoning_text:
                                 self._fire_reasoning_delta(reasoning_text)
-                    return stream.get_final_response()
+                        # Collect completed output items (chatgpt.com backend sends them
+                        # fully populated here but omits them from response.completed)
+                        elif "output_item.done" in event_type:
+                            item = getattr(event, "item", None)
+                            if item is not None:
+                                _collected_output_items.append(item)
+                    final_response = stream.get_final_response()
+                    # chatgpt.com/backend-api/codex sends output: [] in the
+                    # response.completed snapshot — patch with items collected above.
+                    if _collected_output_items and not getattr(final_response, "output", None):
+                        try:
+                            object.__setattr__(final_response, "output", _collected_output_items)
+                        except (AttributeError, TypeError):
+                            pass
+                    return final_response
             except (_httpx.RemoteProtocolError, _httpx.ReadTimeout, _httpx.ConnectError, ConnectionError) as exc:
                 if attempt < max_stream_retries:
                     logger.debug(
@@ -3972,6 +4118,10 @@ class AIAgent:
             self._client_kwargs["default_headers"] = copilot_default_headers()
         elif "api.kimi.com" in normalized:
             self._client_kwargs["default_headers"] = {"User-Agent": "KimiCLI/1.3"}
+        elif "chatgpt.com" in normalized and self.provider == "openai-codex":
+            # Preserve Codex headers on credential rotation — the existing
+            # default_headers dict already has ChatGPT-Account-Id set.
+            pass
         else:
             self._client_kwargs.pop("default_headers", None)
 
@@ -4057,7 +4207,18 @@ class AIAgent:
     def _anthropic_messages_create(self, api_kwargs: dict):
         if self.api_mode == "anthropic_messages":
             self._try_refresh_anthropic_client_credentials()
-        return self._anthropic_client.messages.create(**api_kwargs)
+        try:
+            return self._anthropic_client.messages.create(**api_kwargs)
+        except Exception as e:
+            # Catch Anthropic's specific error formats
+            if hasattr(e, 'body') and isinstance(e.body, dict):
+                error_data = e.body.get('error', {})
+                if error_data.get('type') == 'not_found_error' and 'model' in error_data.get('message', '').lower():
+                    # Fake a malformed response that trips the 'invalid shape' logic
+                    # with a descriptive message in the logs.
+                    logger.error(f"Anthropic model not found: {api_kwargs.get('model')} -- {error_data.get('message')}")
+                    return None
+            raise
 
     def _interruptible_api_call(self, api_kwargs: dict):
         """
@@ -4311,6 +4472,18 @@ class AIAgent:
                 # Accumulate tool call deltas — notify display on first name
                 if delta and delta.tool_calls:
                     for tc_delta in delta.tool_calls:
+                        extra = getattr(tc_delta, "extra_content", None)
+                        if extra is None and hasattr(tc_delta, "model_extra"):
+                            extra = (tc_delta.model_extra or {}).get("extra_content")
+                        if isinstance(extra, dict) and extra.get("display_only"):
+                            name = ""
+                            if getattr(tc_delta, "function", None):
+                                name = getattr(tc_delta.function, "name", "") or ""
+                            if name:
+                                _fire_first_delta()
+                                self._fire_tool_gen_started(name)
+                            continue
+
                         raw_idx = tc_delta.index if tc_delta.index is not None else 0
                         delta_id = tc_delta.id or ""
 
@@ -4344,9 +4517,6 @@ class AIAgent:
                                 entry["function"]["name"] += tc_delta.function.name
                             if tc_delta.function.arguments:
                                 entry["function"]["arguments"] += tc_delta.function.arguments
-                        extra = getattr(tc_delta, "extra_content", None)
-                        if extra is None and hasattr(tc_delta, "model_extra"):
-                            extra = (tc_delta.model_extra or {}).get("extra_content")
                         if extra is not None:
                             if hasattr(extra, "model_dump"):
                                 extra = extra.model_dump()
@@ -5196,6 +5366,7 @@ class AIAgent:
         Handles reasoning extraction, reasoning_details, and optional tool_calls
         so both the tool-call path and the final-response path share one builder.
         """
+        content_text = _normalize_assistant_content(getattr(assistant_message, "content", None))
         reasoning_text = self._extract_reasoning(assistant_message)
         _from_structured = bool(reasoning_text)
 
@@ -5203,7 +5374,7 @@ class AIAgent:
         # reasoning fields are present (some models/providers embed thinking
         # directly in the content rather than returning separate API fields).
         if not reasoning_text:
-            content = assistant_message.content or ""
+            content = content_text
             think_blocks = re.findall(r'<think>(.*?)</think>', content, flags=re.DOTALL)
             if think_blocks:
                 combined = "\n\n".join(b.strip() for b in think_blocks if b.strip())
@@ -5229,7 +5400,7 @@ class AIAgent:
 
         msg = {
             "role": "assistant",
-            "content": assistant_message.content or "",
+            "content": content_text,
             "reasoning": reasoning_text,
             "finish_reason": finish_reason,
         }
@@ -6658,6 +6829,12 @@ class AIAgent:
                     _ctx_parts.append(str(r["context"]))
                 elif isinstance(r, str) and r.strip():
                     _ctx_parts.append(r)
+            _recency_hint = _build_recency_recall_hint(
+                original_user_message,
+                self.valid_tool_names,
+            )
+            if _recency_hint:
+                _ctx_parts.append(_recency_hint)
             if _ctx_parts:
                 _plugin_turn_context = "\n\n".join(_ctx_parts)
         except Exception as exc:
@@ -6913,6 +7090,10 @@ class AIAgent:
                         if response is None:
                             response_invalid = True
                             error_details.append("response is None")
+                        elif hasattr(response, 'type') and response.type == 'error':
+                            response_invalid = True
+                            error_msg = response.error.get('message', 'Unknown Anthropic Error') if hasattr(response, 'error') and isinstance(response.error, dict) else str(getattr(response, 'error', 'Unknown'))
+                            error_details.append(f"Anthropic API Error: {error_msg}")
                         elif not isinstance(content_blocks, list):
                             response_invalid = True
                             error_details.append("response.content is not a list")
@@ -6974,10 +7155,16 @@ class AIAgent:
                                 logging.debug(f"Response attributes for invalid response: {resp_attrs}")
                         
                         self._vprint(f"{self.log_prefix}⚠️  Invalid API response (attempt {retry_count}/{max_retries}): {', '.join(error_details)}", force=True)
-                        self._vprint(f"{self.log_prefix}   🏢 Provider: {provider_name}", force=True)
+                        self._vprint(f"{self.log_prefix}   🏢 Provider: {provider_name} | API Mode: {self.api_mode}", force=True)
                         cleaned_provider_error = self._clean_error_message(error_msg)
                         self._vprint(f"{self.log_prefix}   📝 Provider message: {cleaned_provider_error}", force=True)
-                        self._vprint(f"{self.log_prefix}   ⏱️  Response time: {api_duration:.2f}s (fast response often indicates rate limiting)", force=True)
+                        self._vprint(f"{self.log_prefix}   ⏱️  Response time: {api_duration:.2f}s", force=True)
+                        if response:
+                            self._vprint(f"{self.log_prefix}   🔍 Raw Response Type: {type(response)}", force=True)
+                            try:
+                                self._vprint(f"{self.log_prefix}   🔍 Raw Response Data: {str(response)[:500]}", force=True)
+                            except:
+                                pass
                         
                         if retry_count >= max_retries:
                             # Try fallback before giving up
@@ -7615,6 +7802,14 @@ class AIAgent:
                         # Try fallback before aborting — a different provider
                         # may not have the same issue (rate limit, auth, etc.)
                         self._emit_status(f"⚠️ Non-retryable error (HTTP {status_code}) — trying fallback...")
+                        _err_body_raw = getattr(api_error, "body", None) or getattr(api_error, "response", None)
+                        logging.warning(
+                            "%sPrimary error before fallback: HTTP %s from %s — %s | body: %s | UA in client_kwargs: %s",
+                            self.log_prefix, status_code, _base,
+                            str(api_error)[:200],
+                            str(_err_body_raw)[:300],
+                            (self._client_kwargs or {}).get("default_headers", {}).get("User-Agent", "NOT SET"),
+                        )
                         if self._try_activate_fallback():
                             retry_count = 0
                             continue
@@ -7806,23 +8001,9 @@ class AIAgent:
                 # Normalize content to string — some OpenAI-compatible servers
                 # (llama-server, etc.) return content as a dict or list instead
                 # of a plain string, which crashes downstream .strip() calls.
-                if assistant_message.content is not None and not isinstance(assistant_message.content, str):
-                    raw = assistant_message.content
-                    if isinstance(raw, dict):
-                        assistant_message.content = raw.get("text", "") or raw.get("content", "") or json.dumps(raw)
-                    elif isinstance(raw, list):
-                        # Multimodal content list — extract text parts
-                        parts = []
-                        for part in raw:
-                            if isinstance(part, str):
-                                parts.append(part)
-                            elif isinstance(part, dict) and part.get("type") == "text":
-                                parts.append(part.get("text", ""))
-                            elif isinstance(part, dict) and "text" in part:
-                                parts.append(str(part["text"]))
-                        assistant_message.content = "\n".join(parts)
-                    else:
-                        assistant_message.content = str(raw)
+                assistant_message.content = _normalize_assistant_content(
+                    getattr(assistant_message, "content", None)
+                )
 
                 # Handle assistant response
                 if assistant_message.content and not self.quiet_mode:
@@ -8068,28 +8249,36 @@ class AIAgent:
                         assistant_message.tool_calls
                     )
 
+                    turn_is_housekeeping = self._is_post_response_housekeeping_turn(
+                        assistant_message.tool_calls
+                    )
+
+                    # Assistant free-text on substantive tool turns is often
+                    # speculative/runtime-confused chatter (e.g. claiming tools are
+                    # unavailable while successfully calling them). Persisting that
+                    # text poisons later turns because the model reads its own bogus
+                    # narration back from history. Keep mixed content only for pure
+                    # housekeeping turns like memory/todo/session_search/skill_manage.
+                    if assistant_message.tool_calls and not turn_is_housekeeping:
+                        assistant_message = SimpleNamespace(
+                            **{
+                                **getattr(assistant_message, "__dict__", {}),
+                                "content": None,
+                            }
+                        )
+
                     assistant_msg = self._build_assistant_message(assistant_message, finish_reason)
                     
                     # If this turn has both content AND tool_calls, capture the content
-                    # as a fallback final response. Common pattern: model delivers its
-                    # answer and calls memory/skill tools as a side-effect in the same
-                    # turn. If the follow-up turn after tools is empty, we use this.
+                    # as a fallback final response only for housekeeping turns. Common
+                    # pattern: model delivers its answer and calls memory/skill tools as
+                    # a side-effect in the same turn. For substantive tools, mixed
+                    # content is usually transient progress chatter and should not be
+                    # replayed as the final answer.
                     turn_content = assistant_message.content or ""
-                    if turn_content and self._has_content_after_think_block(turn_content):
+                    if turn_is_housekeeping and turn_content and self._has_content_after_think_block(turn_content):
                         self._last_content_with_tools = turn_content
-                        # Only mute subsequent output when EVERY tool call in
-                        # this turn is post-response housekeeping (memory, todo,
-                        # skill_manage, etc.).  If any substantive tool is present
-                        # (search_files, read_file, write_file, terminal, ...),
-                        # keep output visible so the user sees progress.
-                        _HOUSEKEEPING_TOOLS = frozenset({
-                            "memory", "todo", "skill_manage", "session_search",
-                        })
-                        _all_housekeeping = all(
-                            tc.function.name in _HOUSEKEEPING_TOOLS
-                            for tc in assistant_message.tool_calls
-                        )
-                        if _all_housekeeping and self._has_stream_consumers():
+                        if self._has_stream_consumers():
                             self._mute_post_response = True
                         elif self.quiet_mode:
                             clean = self._strip_think_blocks(turn_content).strip()

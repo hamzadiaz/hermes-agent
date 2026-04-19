@@ -235,6 +235,51 @@ class TestContextPressureFlags:
 
         assert agent._context_pressure_warned is False
 
+    def test_compression_injects_current_focus_and_hydrates_it_after_restart(self, agent):
+        """Compaction should preserve the current in-progress task across fresh hydration."""
+        from tools.todo_tool import TodoStore
+
+        agent.compression_enabled = True
+        agent.context_compressor = MagicMock()
+        agent.context_compressor.compress.return_value = [
+            {"role": "assistant", "content": "Compacted summary"}
+        ]
+        agent.context_compressor.context_length = 200_000
+        agent.context_compressor.threshold_tokens = 100_000
+        agent._build_system_prompt = MagicMock(return_value="system prompt")
+        agent._cached_system_prompt = "old system prompt"
+        agent._session_db = None
+        agent.flush_memories = MagicMock()
+
+        agent._todo_store = TodoStore()
+        agent._todo_store.write([
+            {"id": "2", "content": "older pending task", "status": "pending"},
+            {"id": "8", "content": "containers task", "status": "in_progress"},
+            {"id": "9", "content": "later pending task", "status": "pending"},
+        ])
+
+        compressed, _system_prompt = agent._compress_context(
+            [{"role": "user", "content": "continue"}, {"role": "assistant", "content": "working"}],
+            "system prompt",
+        )
+
+        injected = compressed[-1]
+        assert injected["role"] == "user"
+        assert "Resume the current in-progress item immediately" in injected["content"]
+        assert "Current focus: [>] 8. containers task (in_progress)" in injected["content"]
+
+        active_lines = [line for line in injected["content"].splitlines() if line.startswith("- ")]
+        assert active_lines[0] == "- [>] 8. containers task (in_progress)"
+
+        restored_agent = agent
+        restored_agent._todo_store = TodoStore()
+        with patch("run_agent._set_interrupt"):
+            restored_agent._hydrate_todo_store(compressed)
+
+        restored_items = restored_agent._todo_store.read()
+        assert restored_items[0]["id"] == "8"
+        assert restored_items[0]["status"] == "in_progress"
+
     def test_emit_callback_error_handled(self, agent):
         """If status_callback raises, it should be caught gracefully."""
         cb = MagicMock(side_effect=RuntimeError("callback boom"))

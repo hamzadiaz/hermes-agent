@@ -168,6 +168,7 @@ def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
 
     result = asyncio.run(
         runner._run_agent(
+            None,
             message="ping",
             context_prompt="",
             history=[],

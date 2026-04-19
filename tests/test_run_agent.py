@@ -304,6 +304,30 @@ class TestExtractReasoning:
         assert agent._extract_reasoning(msg) == expected
 
 
+class TestRecencyRecallHint:
+    def test_returns_hint_for_recency_question_with_session_search(self):
+        hint = run_agent._build_recency_recall_hint(
+            "What was the exact latest issue we were discussing immediately before this session?",
+            {"session_search", "memory"},
+        )
+        assert "recent-sessions mode" in hint
+        assert "most recent relevant session/transcript context" in hint
+
+    def test_returns_empty_without_session_search_tool(self):
+        hint = run_agent._build_recency_recall_hint(
+            "What were we just working on?",
+            {"memory"},
+        )
+        assert hint == ""
+
+    def test_returns_empty_for_non_recency_question(self):
+        hint = run_agent._build_recency_recall_hint(
+            "Write a Python script to sort a CSV.",
+            {"session_search", "memory"},
+        )
+        assert hint == ""
+
+
 class TestCleanSessionContent:
     def test_none_passthrough(self):
         assert AIAgent._clean_session_content(None) is None
@@ -412,6 +436,7 @@ class TestInit:
         ):
             a = AIAgent(
                 api_key="test-key-1234567890",
+                base_url="https://openrouter.ai/api/v1",
                 model="anthropic/claude-sonnet-4-20250514",
                 quiet_mode=True,
                 skip_context_files=True,
@@ -554,6 +579,32 @@ class TestHydrateTodoStore:
             agent._hydrate_todo_store(history)
         assert agent._todo_store.has_items()
 
+    def test_recovers_from_compaction_snapshot_before_older_tool_state(self, agent):
+        older_todos = [{"id": "1", "content": "old task", "status": "pending"}]
+        snapshot_todos = [
+            {"id": "8", "content": "current task", "status": "in_progress"},
+            {"id": "9", "content": "next task", "status": "pending"},
+        ]
+        history = [
+            {
+                "role": "tool",
+                "content": json.dumps({"todos": older_todos}),
+                "tool_call_id": "c1",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "[Your active task list was preserved across context compression]\n"
+                    "[TODO_SNAPSHOT]\n"
+                    f"{json.dumps({'todos': snapshot_todos})}\n"
+                    "[/TODO_SNAPSHOT]"
+                ),
+            },
+        ]
+        with patch("run_agent._set_interrupt"):
+            agent._hydrate_todo_store(history)
+        assert agent._todo_store.read() == snapshot_todos
+
     def test_skips_non_todo_tools(self, agent):
         history = [
             {
@@ -604,6 +655,25 @@ class TestBuildSystemPrompt:
         prompt = agent._build_system_prompt()
         # Should contain current date info like "Conversation started:"
         assert "Conversation started:" in prompt
+
+    def test_session_search_guidance_mentions_recency_priority(self):
+        with (
+            patch(
+                "run_agent.get_tool_definitions",
+                return_value=_make_tool_defs("session_search"),
+            ),
+            patch("run_agent.check_toolset_requirements", return_value={}),
+            patch("run_agent.OpenAI"),
+        ):
+            agent = AIAgent(
+                api_key="test-k...7890",
+                quiet_mode=True,
+                skip_context_files=True,
+                skip_memory=True,
+            )
+
+        prompt = agent._build_system_prompt()
+        assert "most recent relevant session/transcript context first" in prompt
 
     def test_includes_nous_subscription_prompt(self, agent, monkeypatch):
         monkeypatch.setattr(run_agent, "build_nous_subscription_prompt", lambda tool_names: "NOUS SUBSCRIPTION BLOCK")
@@ -792,6 +862,7 @@ class TestBuildApiKwargs:
         assert kwargs["timeout"] == 1800.0
 
     def test_provider_preferences_injected(self, agent):
+        agent.base_url = "https://openrouter.ai/api/v1"
         agent.providers_allowed = ["Anthropic"]
         messages = [{"role": "user", "content": "hi"}]
         kwargs = agent._build_api_kwargs(messages)
@@ -799,6 +870,8 @@ class TestBuildApiKwargs:
 
     def test_reasoning_config_default_openrouter(self, agent):
         """Default reasoning config for OpenRouter should be medium."""
+        agent.base_url = "https://openrouter.ai/api/v1"
+        agent.model = "anthropic/claude-opus-4-7"
         messages = [{"role": "user", "content": "hi"}]
         kwargs = agent._build_api_kwargs(messages)
         reasoning = kwargs["extra_body"]["reasoning"]
@@ -806,6 +879,8 @@ class TestBuildApiKwargs:
         assert reasoning["effort"] == "medium"
 
     def test_reasoning_config_custom(self, agent):
+        agent.base_url = "https://openrouter.ai/api/v1"
+        agent.model = "anthropic/claude-opus-4-7"
         agent.reasoning_config = {"enabled": False}
         messages = [{"role": "user", "content": "hi"}]
         kwargs = agent._build_api_kwargs(messages)
@@ -818,6 +893,7 @@ class TestBuildApiKwargs:
         assert "reasoning" not in kwargs.get("extra_body", {})
 
     def test_reasoning_sent_for_supported_openrouter_model(self, agent):
+        agent.base_url = "https://openrouter.ai/api/v1"
         agent.model = "qwen/qwen3.5-plus-02-15"
         messages = [{"role": "user", "content": "hi"}]
         kwargs = agent._build_api_kwargs(messages)
@@ -910,6 +986,50 @@ class TestBuildAssistantMessage:
         msg = _mock_assistant_msg(content="", tool_calls=[tc])
         result = agent._build_assistant_message(msg, "tool_calls")
         assert "extra_content" not in result["tool_calls"][0]
+
+
+class TestToolTurnContentPersistence:
+    def test_housekeeping_turn_detected(self, agent):
+        tool_calls = [
+            _mock_tool_call(name="memory", arguments="{}", call_id="m1"),
+            _mock_tool_call(name="session_search", arguments='{"query":"atlas"}', call_id="m2"),
+        ]
+        assert agent._is_post_response_housekeeping_turn(tool_calls) is True
+
+    def test_substantive_tool_turn_not_detected_as_housekeeping(self, agent):
+        tool_calls = [
+            _mock_tool_call(name="terminal", arguments='{"command":"pwd"}', call_id="t1"),
+        ]
+        assert agent._is_post_response_housekeeping_turn(tool_calls) is False
+
+    def test_substantive_tool_turn_content_is_scrubbed_before_persisting(self, agent):
+        msg = _mock_assistant_msg(
+            content="Sorry — tool glitch. Hermes XML only.",
+            tool_calls=[_mock_tool_call(name="terminal", arguments='{"command":"pwd"}', call_id="t1")],
+        )
+
+        turn_is_housekeeping = agent._is_post_response_housekeeping_turn(msg.tool_calls)
+        assert turn_is_housekeeping is False
+
+        if msg.tool_calls and not turn_is_housekeeping:
+            msg = SimpleNamespace(**{**msg.__dict__, "content": None})
+
+        result = agent._build_assistant_message(msg, "tool_calls")
+        assert result["content"] == ""
+        assert result["tool_calls"][0]["function"]["name"] == "terminal"
+
+    def test_housekeeping_turn_content_remains_available_as_fallback(self, agent):
+        msg = _mock_assistant_msg(
+            content="Fixed. Saving this to memory.",
+            tool_calls=[_mock_tool_call(name="memory", arguments='{"action":"add"}', call_id="m1")],
+        )
+
+        turn_is_housekeeping = agent._is_post_response_housekeeping_turn(msg.tool_calls)
+        assert turn_is_housekeeping is True
+
+        result = agent._build_assistant_message(msg, "tool_calls")
+        assert result["content"] == "Fixed. Saving this to memory."
+        assert result["tool_calls"][0]["function"]["name"] == "memory"
 
 
 class TestFormatToolsForSystemMessage:
@@ -3156,6 +3276,9 @@ class TestStreamingApiCall:
     def test_api_exception_falls_back_to_non_streaming(self, agent):
         """When streaming fails before any deltas, fallback to non-streaming is attempted."""
         agent.client.chat.completions.create.side_effect = ConnectionError("fail")
+        # Prevent the error recovery path from replacing the mock client with a real OpenAI
+        # client — the fallback must use the same mock so it also raises ConnectionError.
+        agent._replace_primary_openai_client = lambda **_kw: True
         # The fallback also uses the same client, so it'll fail too
         with pytest.raises(ConnectionError, match="fail"):
             agent._interruptible_streaming_api_call({"messages": []})

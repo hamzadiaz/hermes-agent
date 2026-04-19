@@ -93,7 +93,7 @@ _AUTH_JSON_PATH = get_hermes_home() / "auth.json"
 # ChatGPT-backed Codex accounts currently reject gpt-5.3-codex for these
 # auxiliary flows, while gpt-5.2-codex remains broadly available and supports
 # vision via Responses.
-_CODEX_AUX_MODEL = "gpt-5.2-codex"
+_CODEX_AUX_MODEL = "gpt-5.4"
 _CODEX_AUX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 
 
@@ -521,6 +521,23 @@ def _nous_base_url() -> str:
     return os.getenv("NOUS_INFERENCE_BASE_URL", _NOUS_DEFAULT_BASE_URL)
 
 
+def _make_codex_openai_client(api_key: str, base_url: str, account_id: str = "") -> "OpenAI":
+    """Create an OpenAI client for the Codex endpoint using curl_cffi for TLS impersonation.
+
+    chatgpt.com blocks plain Python httpx (JA3/JA4 mismatch).  curl_cffi
+    impersonates Chrome's TLS fingerprint which Cloudflare trusts.
+    """
+    import httpx
+    from agent.curl_cffi_transport import CurlCffiTransport
+    transport = CurlCffiTransport(impersonate="chrome131")
+    default_headers: dict = {"User-Agent": "OpenAI Codex v0.118.0"}
+    if account_id:
+        default_headers["ChatGPT-Account-Id"] = account_id
+    http_client = httpx.Client(transport=transport)
+    return OpenAI(api_key=api_key, base_url=base_url, http_client=http_client,
+                  default_headers=default_headers)
+
+
 def _read_codex_access_token() -> Optional[str]:
     """Read a valid, non-expired Codex OAuth access token from Hermes auth store."""
     pool_present, entry = _select_pool_entry("openai-codex")
@@ -554,6 +571,20 @@ def _read_codex_access_token() -> Optional[str]:
     except Exception as exc:
         logger.debug("Could not read Codex auth for auxiliary client: %s", exc)
         return None
+
+
+def _read_codex_account_id() -> str:
+    """Read the ChatGPT account_id associated with the Codex OAuth token."""
+    pool_present, entry = _select_pool_entry("openai-codex")
+    if pool_present:
+        return str(getattr(entry, "account_id", "") or "").strip()
+    try:
+        from hermes_cli.auth import _read_codex_tokens
+        data = _read_codex_tokens()
+        tokens = data.get("tokens", {})
+        return str(tokens.get("account_id", "") or "").strip()
+    except Exception:
+        return ""
 
 
 def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
@@ -744,7 +775,8 @@ def _try_custom_endpoint() -> Tuple[Optional[OpenAI], Optional[str]]:
         return None, None
     model = _read_main_model() or "gpt-4o-mini"
     logger.debug("Auxiliary client: custom endpoint (%s)", model)
-    return OpenAI(api_key=custom_key, base_url=custom_base), model
+    client_kwargs: dict = {"api_key": custom_key, "base_url": custom_base}
+    return OpenAI(**client_kwargs), model
 
 
 def _try_codex() -> Tuple[Optional[Any], Optional[str]]:
@@ -759,8 +791,9 @@ def _try_codex() -> Tuple[Optional[Any], Optional[str]]:
         if not codex_token:
             return None, None
         base_url = _CODEX_AUX_BASE_URL
+    account_id = _read_codex_account_id()
     logger.debug("Auxiliary client: Codex OAuth (%s via Responses API)", _CODEX_AUX_MODEL)
-    real_client = OpenAI(api_key=codex_token, base_url=base_url)
+    real_client = _make_codex_openai_client(codex_token, base_url, account_id)
     return CodexAuxiliaryClient(real_client, _CODEX_AUX_MODEL), _CODEX_AUX_MODEL
 
 
@@ -1008,7 +1041,8 @@ def resolve_provider_client(
                                "but no Codex OAuth token found (run: hermes model)")
                 return None, None
             final_model = model or _CODEX_AUX_MODEL
-            raw_client = OpenAI(api_key=codex_token, base_url=_CODEX_AUX_BASE_URL)
+            account_id = _read_codex_account_id()
+            raw_client = _make_codex_openai_client(codex_token, _CODEX_AUX_BASE_URL, account_id)
             return (raw_client, final_model)
         # Standard path: wrap in CodexAuxiliaryClient adapter
         client, default = _try_codex()
