@@ -8,6 +8,7 @@ end-to-end dispatch.  All external dependencies are mocked.
 import os
 import struct
 import subprocess
+import sys
 import wave
 from unittest.mock import MagicMock, patch
 
@@ -429,8 +430,10 @@ class TestTranscribeLocalExtended:
         mock_model.transcribe.return_value = ([mock_segment], mock_info)
         mock_whisper_cls = MagicMock(return_value=mock_model)
 
-        with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", mock_whisper_cls), \
+        fake_fw = MagicMock()
+        fake_fw.WhisperModel = mock_whisper_cls
+        with patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+             patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
              patch("tools.transcription_tools._local_model", None), \
              patch("tools.transcription_tools._local_model_name", None):
             from tools.transcription_tools import _transcribe_local
@@ -455,8 +458,10 @@ class TestTranscribeLocalExtended:
         mock_model.transcribe.return_value = ([mock_segment], mock_info)
         mock_whisper_cls = MagicMock(return_value=mock_model)
 
-        with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", mock_whisper_cls), \
+        fake_fw = MagicMock()
+        fake_fw.WhisperModel = mock_whisper_cls
+        with patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+             patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
              patch("tools.transcription_tools._local_model", None), \
              patch("tools.transcription_tools._local_model_name", None):
             from tools.transcription_tools import _transcribe_local
@@ -471,8 +476,10 @@ class TestTranscribeLocalExtended:
 
         mock_whisper_cls = MagicMock(side_effect=RuntimeError("CUDA out of memory"))
 
-        with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", mock_whisper_cls), \
+        fake_fw = MagicMock()
+        fake_fw.WhisperModel = mock_whisper_cls
+        with patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+             patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
              patch("tools.transcription_tools._local_model", None):
             from tools.transcription_tools import _transcribe_local
             result = _transcribe_local(str(audio), "large-v3")
@@ -495,8 +502,10 @@ class TestTranscribeLocalExtended:
         mock_model = MagicMock()
         mock_model.transcribe.return_value = ([seg1, seg2], mock_info)
 
-        with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", return_value=mock_model), \
+        fake_fw = MagicMock()
+        fake_fw.WhisperModel.return_value = mock_model
+        with patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+             patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
              patch("tools.transcription_tools._local_model", None):
             from tools.transcription_tools import _transcribe_local
             result = _transcribe_local(str(audio), "base")

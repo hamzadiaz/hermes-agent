@@ -71,9 +71,10 @@ def test_run_stdio_uses_resolved_command_and_prepended_path(tmp_path):
     async def _test():
         with patch("tools.mcp_tool.shutil.which", return_value=None), \
              patch.dict("os.environ", {"HERMES_HOME": str(tmp_path), "PATH": "/usr/bin", "HOME": str(tmp_path)}, clear=False), \
-             patch("tools.mcp_tool.StdioServerParameters") as mock_params, \
-             patch("tools.mcp_tool.stdio_client", return_value=mock_stdio_cm), \
-             patch("tools.mcp_tool.ClientSession", return_value=mock_session_cm):
+             patch("tools.mcp_tool._MCP_AVAILABLE", True), \
+             patch("tools.mcp_tool.StdioServerParameters", create=True) as mock_params, \
+             patch("tools.mcp_tool.stdio_client", return_value=mock_stdio_cm, create=True), \
+             patch("tools.mcp_tool.ClientSession", return_value=mock_session_cm, create=True):
             server = MCPServerTask("srv")
             await server.start({"command": "npx", "args": ["-y", "pkg"], "env": {"PATH": "/usr/bin"}})
 

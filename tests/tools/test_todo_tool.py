@@ -58,6 +58,22 @@ class TestFormatForInjection:
         assert "Next" in text
         assert "Working" in text
         assert "context compression" in text.lower()
+        assert "Resume the current in-progress item immediately" in text
+        assert "[TODO_SNAPSHOT]" in text
+
+    def test_in_progress_is_prioritized_over_older_pending_items(self):
+        store = TodoStore()
+        store.write([
+            {"id": "1", "content": "Old pending", "status": "pending"},
+            {"id": "8", "content": "Current focus", "status": "in_progress"},
+            {"id": "9", "content": "Later pending", "status": "pending"},
+        ])
+
+        text = store.format_for_injection()
+        assert "Current focus: [>] 8. Current focus (in_progress)" in text
+        active_lines = [line for line in text.splitlines() if line.startswith("- ")]
+        assert active_lines[0] == "- [>] 8. Current focus (in_progress)"
+        assert '"id": "8"' in text
 
 
 class TestMergeMode:

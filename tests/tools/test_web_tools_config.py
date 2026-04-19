@@ -518,6 +518,39 @@ class TestWebSearchErrorHandling:
         assert "exception_chain" not in result
         assert "traceback" not in result
 
+    def test_firecrawl_sdk_none_response_bug_uses_http_fallback(self):
+        import tools.web_tools
+
+        raw_response = MagicMock()
+        raw_response.status_code = 200
+        raw_response.json.return_value = {
+            "success": True,
+            "data": {
+                "web": [
+                    {
+                        "title": "Voyager 1",
+                        "url": "https://example.com/voyager",
+                        "description": "Probe update",
+                    }
+                ]
+            },
+        }
+
+        firecrawl_client = MagicMock()
+        firecrawl_client.search.side_effect = AttributeError(
+            "'NoneType' object has no attribute 'status_code'"
+        )
+        firecrawl_client._v2_client.http_client.post.return_value = raw_response
+
+        with patch("tools.web_tools._get_backend", return_value="firecrawl"), \
+             patch("tools.web_tools._get_firecrawl_client", return_value=firecrawl_client), \
+             patch("tools.interrupt.is_interrupted", return_value=False):
+            result = json.loads(tools.web_tools.web_search_tool("Voyager 1", limit=1))
+
+        assert result["success"] is True
+        assert result["data"]["web"][0]["title"] == "Voyager 1"
+        firecrawl_client._v2_client.http_client.post.assert_called_once()
+
 
 class TestCheckWebApiKey:
     """Test suite for check_web_api_key() unified availability check."""

@@ -108,16 +108,47 @@ class TodoStore:
         # Only inject pending/in_progress items — completed/cancelled ones
         # cause the model to re-do finished work after compression.
         active_items = [
-            item for item in self._items
+            item.copy() for item in self._items
             if item["status"] in ("pending", "in_progress")
         ]
         if not active_items:
             return None
 
+        # Put the current in-progress item(s) first so the model resumes the
+        # exact task it was already working on instead of jumping back to older
+        # pending tasks after compaction.
+        prioritized_items = sorted(
+            active_items,
+            key=lambda item: (0 if item["status"] == "in_progress" else 1),
+        )
+        current_items = [item for item in prioritized_items if item["status"] == "in_progress"]
+
         lines = ["[Your active task list was preserved across context compression]"]
-        for item in active_items:
+        if current_items:
+            current = current_items[0]
+            lines.append(
+                "Resume the current in-progress item immediately after compaction. "
+                "Do not jump back to older pending items unless the in-progress item is completed or blocked."
+            )
+            lines.append(
+                f"Current focus: [>] {current['id']}. {current['content']} ({current['status']})"
+            )
+        else:
+            lines.append(
+                "No item is marked in_progress. Continue with the highest-priority pending item shown below."
+            )
+
+        lines.append("Active items:")
+        for item in prioritized_items:
             marker = markers.get(item["status"], "[?]")
             lines.append(f"- {marker} {item['id']}. {item['content']} ({item['status']})")
+
+        # Include a machine-readable snapshot so fresh agent instances can
+        # rebuild todo state even if the original todo tool response was
+        # summarized away during compaction.
+        lines.append("[TODO_SNAPSHOT]")
+        lines.append(json.dumps({"todos": prioritized_items}, ensure_ascii=False))
+        lines.append("[/TODO_SNAPSHOT]")
 
         return "\n".join(lines)
 

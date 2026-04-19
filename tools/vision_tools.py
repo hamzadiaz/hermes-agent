@@ -422,13 +422,17 @@ async def vision_analyze_tool(
             analysis = extract_content_or_reasoning(response)
 
         analysis_length = len(analysis)
+        if not analysis:
+            raise RuntimeError(
+                "Vision model returned empty analysis after retry"
+            )
         
         logger.info("Image analysis completed (%s characters)", analysis_length)
         
         # Prepare successful response
         result = {
             "success": True,
-            "analysis": analysis or "There was a problem with the request and the image could not be analyzed."
+            "analysis": analysis
         }
         
         debug_call_data["success"] = True

@@ -303,6 +303,24 @@ class TestErrorLoggingExcInfo:
             assert any(r.exc_info and r.exc_info[0] is not None for r in error_records)
 
     @pytest.mark.asyncio
+    async def test_empty_analysis_after_retry_returns_failure(self, tmp_path):
+        png = tmp_path / "test.png"
+        png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+
+        empty_response = MagicMock()
+
+        with (
+            patch("tools.vision_tools.extract_content_or_reasoning", return_value=""),
+            patch("tools.vision_tools.async_call_llm", new_callable=AsyncMock, return_value=empty_response) as mock_llm,
+        ):
+            result = json.loads(await vision_analyze_tool(str(png), "describe this", "test/model"))
+
+        assert result["success"] is False
+        assert "empty analysis after retry" in result["error"].lower()
+        assert "could not be analyzed" in result["analysis"].lower()
+        assert mock_llm.await_count == 2
+
+    @pytest.mark.asyncio
     async def test_cleanup_error_logs_exc_info(self, tmp_path, caplog):
         """Temp file cleanup failure should log warning with exc_info."""
         # Create a real temp file that will be "downloaded"

@@ -239,6 +239,57 @@ def _get_firecrawl_client():
     _firecrawl_client_config = client_config
     return _firecrawl_client
 
+
+
+def _firecrawl_search(query: str, limit: int):
+    """Run Firecrawl search with Hermes-side guards around SDK edge cases.
+
+    Firecrawl v2's search helper currently has an exception-path bug where it
+    calls its own error handler with ``response=None``, which explodes as
+    ``'NoneType' object has no attribute 'status_code'`` and hides the real
+    backend failure. Route through the SDK normally first, then fall back to a
+    direct HTTP call when that specific broken path is hit.
+    """
+    client = _get_firecrawl_client()
+    try:
+        response = client.search(query=query, limit=limit)
+        if response is None:
+            raise RuntimeError("Firecrawl search returned no response")
+        return response
+    except AttributeError as exc:
+        msg = str(exc)
+        if "NoneType" not in msg or "status_code" not in msg:
+            raise
+
+        logger.warning(
+            "Firecrawl SDK search hit response=None bug; retrying with raw HTTP transport"
+        )
+
+        v2_client = getattr(client, "_v2_client", None)
+        http_client = getattr(v2_client, "http_client", None)
+        if http_client is None:
+            raise RuntimeError(
+                "Firecrawl SDK failed and raw HTTP fallback is unavailable"
+            ) from exc
+
+        payload = {
+            "query": query,
+            "limit": limit,
+        }
+        response = http_client.post("/v2/search", payload)
+        if response is None:
+            raise RuntimeError("Firecrawl HTTP fallback returned no response")
+        if response.status_code != 200:
+            try:
+                body = response.text[:500]
+            except Exception:
+                body = ""
+            raise RuntimeError(
+                f"Firecrawl search failed: HTTP {response.status_code}"
+                + (f" - {body}" if body else "")
+            )
+        return response.json()
+
 # ─── Parallel Client ─────────────────────────────────────────────────────────
 
 _parallel_client = None
@@ -1090,7 +1141,7 @@ def web_search_tool(query: str, limit: int = 5) -> str:
 
         logger.info("Searching the web for: '%s' (limit: %d)", query, limit)
 
-        response = _get_firecrawl_client().search(
+        response = _firecrawl_search(
             query=query,
             limit=limit
         )

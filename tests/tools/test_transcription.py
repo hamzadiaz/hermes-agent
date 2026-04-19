@@ -36,14 +36,16 @@ class TestGetProvider:
         monkeypatch.setenv("VOICE_TOOLS_OPENAI_KEY", "sk-test")
         monkeypatch.delenv("GROQ_API_KEY", raising=False)
         with patch("tools.transcription_tools._HAS_FASTER_WHISPER", False), \
-             patch("tools.transcription_tools._HAS_OPENAI", True):
+             patch("tools.transcription_tools._HAS_OPENAI", True), \
+             patch("tools.transcription_tools._has_local_command", return_value=False):
             from tools.transcription_tools import _get_provider
             assert _get_provider({"provider": "local"}) == "none"
 
     def test_local_nothing_available(self, monkeypatch):
         monkeypatch.delenv("VOICE_TOOLS_OPENAI_KEY", raising=False)
         with patch("tools.transcription_tools._HAS_FASTER_WHISPER", False), \
-             patch("tools.transcription_tools._HAS_OPENAI", False):
+             patch("tools.transcription_tools._HAS_OPENAI", False), \
+             patch("tools.transcription_tools._has_local_command", return_value=False):
             from tools.transcription_tools import _get_provider
             assert _get_provider({"provider": "local"}) == "none"
 
@@ -123,6 +125,7 @@ class TestValidateAudioFile:
 class TestTranscribeLocal:
 
     def test_successful_transcription(self, tmp_path):
+        import sys
         audio_file = tmp_path / "test.ogg"
         audio_file.write_bytes(b"fake audio")
 
@@ -135,8 +138,12 @@ class TestTranscribeLocal:
         mock_model = MagicMock()
         mock_model.transcribe.return_value = ([mock_segment], mock_info)
 
-        with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", return_value=mock_model), \
+        # faster_whisper may not be installed; inject a fake module so the lazy
+        # `from faster_whisper import WhisperModel` inside _transcribe_local works.
+        fake_fw = MagicMock()
+        fake_fw.WhisperModel.return_value = mock_model
+        with patch.dict(sys.modules, {"faster_whisper": fake_fw}), \
+             patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
              patch("tools.transcription_tools._local_model", None):
             from tools.transcription_tools import _transcribe_local
             result = _transcribe_local(str(audio_file), "base")

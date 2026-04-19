@@ -25,6 +25,7 @@ Usage::
 
 import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -502,6 +503,80 @@ def _transcribe_openai(file_path: str, model_name: str) -> Dict[str, Any]:
         return {"success": False, "transcript": "", "error": f"Transcription failed: {e}"}
 
 # ---------------------------------------------------------------------------
+# STT glossary post-processing
+# ---------------------------------------------------------------------------
+
+
+def _load_stt_glossary_terms() -> list[str]:
+    """Load glossary hints from ~/.hermes/TOOLS.md STT section.
+
+    Expected format (single line):
+      - Custom glossary: term1, term2, term3
+    """
+    tools_path = get_hermes_home() / "TOOLS.md"
+    if not tools_path.exists():
+        return []
+
+    try:
+        content = tools_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return []
+
+    glossary_line = None
+    for line in content.splitlines():
+        if "custom glossary" in line.lower() and ":" in line:
+            glossary_line = line
+            break
+
+    if not glossary_line:
+        return []
+
+    raw = glossary_line.split(":", 1)[1]
+    terms = [term.strip() for term in raw.split(",") if term.strip()]
+    return terms
+
+
+def _apply_stt_glossary_corrections(text: str) -> str:
+    """Apply lightweight corrections for frequent proper-noun STT misses."""
+    if not text:
+        return text
+
+    corrected = text
+
+    # Hard-coded common misses observed in real transcripts.
+    correction_map = [
+        (r"\bopen\s*cloud\b", "OpenClaw"),
+        (r"\bopen\s*claw\b", "OpenClaw"),
+        (r"\bopti\s*jara\b", "Optijara"),
+        (r"\bagent\s*jara\b", "AgentJara"),
+        (r"\bkev(?:i|e)o\b", "Keveo"),
+    ]
+
+    for pattern, replacement in correction_map:
+        corrected = re.sub(pattern, replacement, corrected, flags=re.IGNORECASE)
+
+    # Keep capitalization of glossary terms consistent when already close.
+    for term in _load_stt_glossary_terms():
+        if len(term) < 4:
+            continue
+        pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+        corrected = pattern.sub(term, corrected)
+
+    return corrected
+
+
+def _finalize_transcription_result(result: Dict[str, Any]) -> Dict[str, Any]:
+    if not result.get("success"):
+        return result
+
+    transcript = str(result.get("transcript") or "")
+    fixed = _apply_stt_glossary_corrections(transcript)
+    if fixed != transcript:
+        result = {**result, "transcript": fixed, "glossary_corrected": True}
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -544,23 +619,23 @@ def transcribe_audio(file_path: str, model: Optional[str] = None) -> Dict[str, A
     if provider == "local":
         local_cfg = stt_config.get("local", {})
         model_name = model or local_cfg.get("model", DEFAULT_LOCAL_MODEL)
-        return _transcribe_local(file_path, model_name)
+        return _finalize_transcription_result(_transcribe_local(file_path, model_name))
 
     if provider == "local_command":
         local_cfg = stt_config.get("local", {})
         model_name = _normalize_local_command_model(
             model or local_cfg.get("model", DEFAULT_LOCAL_MODEL)
         )
-        return _transcribe_local_command(file_path, model_name)
+        return _finalize_transcription_result(_transcribe_local_command(file_path, model_name))
 
     if provider == "groq":
         model_name = model or DEFAULT_GROQ_STT_MODEL
-        return _transcribe_groq(file_path, model_name)
+        return _finalize_transcription_result(_transcribe_groq(file_path, model_name))
 
     if provider == "openai":
         openai_cfg = stt_config.get("openai", {})
         model_name = model or openai_cfg.get("model", DEFAULT_STT_MODEL)
-        return _transcribe_openai(file_path, model_name)
+        return _finalize_transcription_result(_transcribe_openai(file_path, model_name))
 
     # No provider available
     return {

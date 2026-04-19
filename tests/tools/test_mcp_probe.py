@@ -24,6 +24,12 @@ def _reset_mcp_state():
 class TestProbeMcpServerTools:
     """Tests for the lightweight probe_mcp_server_tools function."""
 
+    @pytest.fixture(autouse=True)
+    def _mock_mcp_available(self):
+        """Most tests require MCP to appear installed; override per-test for the exception."""
+        with patch("tools.mcp_tool._MCP_AVAILABLE", True):
+            yield
+
     def test_returns_empty_when_mcp_not_available(self):
         with patch("tools.mcp_tool._MCP_AVAILABLE", False):
             from tools.mcp_tool import probe_mcp_server_tools
