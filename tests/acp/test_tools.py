@@ -1,7 +1,7 @@
 """Tests for acp_adapter.tools — tool kind mapping and ACP content building."""
 
 import pytest
-
+pytest.importorskip("acp")
 from acp_adapter.tools import (
     TOOL_KIND_MAP,
     build_tool_complete,

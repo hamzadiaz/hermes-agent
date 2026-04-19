@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+pytest.importorskip("mcp")
 
 
 # ---------------------------------------------------------------------------
