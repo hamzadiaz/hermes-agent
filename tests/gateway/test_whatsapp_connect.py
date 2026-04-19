@@ -103,6 +103,19 @@ def _connect_patches(mock_proc, mock_fh, mock_client_cls=None):
     return base
 
 
+@pytest.fixture(autouse=True)
+def _mock_whatsapp_session_lock():
+    """Prevent the real scoped lock from being acquired during tests.
+
+    Multiple xdist workers use the same test session_path (/tmp/test-wa-session),
+    producing the same lock key. Without this mock, the worker that acquires the
+    lock first causes all other parallel workers to fail with 'session already in
+    use' (they see a live PID != os.getpid() and reject the lock).
+    """
+    with patch("gateway.status.acquire_scoped_lock", return_value=(True, None)):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # _close_bridge_log() unit tests
 # ---------------------------------------------------------------------------
