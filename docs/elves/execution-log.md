@@ -419,3 +419,23 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 - The 6 collection errors are NOT test failures — they're missing optional dependencies (`acp`, `mcp` modules not installed)
 
 **Learnings added:** L17, L18, L19, L20
+
+---
+
+## Scout Batch 10 — xdist WhatsApp Lock Race + Fleet Scripts (2026-04-19)
+
+**Status:** Complete
+
+**Problem found:** `tests/gateway/test_whatsapp_connect.py::TestBridgeRuntimeFailure` — 2-3 tests failed non-deterministically in xdist. Sequential run: 0 failures. Root cause: xdist workers share the same `_session_path = Path("/tmp/test-wa-session")` → same `whatsapp-session` lock key in `gateway.status.acquire_scoped_lock`. The first worker to acquire the lock writes its PID to `~/.local/state/hermes/gateway-locks/`. Concurrent workers see a live PID != `os.getpid()` → `acquire_scoped_lock` returns `(False, {pid: N})` → `connect()` returns False immediately → file handle never opened → `mock_fh.close.assert_called_once()` fails. Sequential passes because same pytest PID writes and re-reads the lock → `os.getpid() == existing_pid` → allowed to re-acquire.
+
+**Fix:** Added module-level autouse fixture `_mock_whatsapp_session_lock` that patches `gateway.status.acquire_scoped_lock` to return `(True, None)` for the duration of each test. The lock mechanism is not under test here.
+
+**Bonus:** Committed fleet health check scripts that were untracked:
+- `scripts/hermes_fleet_health_check.py` (193 lines) — validates LaunchAgent deployments, Gemini model versions, duplicate tokens, recent Telegram polling
+- `scripts/hermes_fleet_health_monitor.py` (204 lines) — zero-LLM-token alerter with state-diff alerts via Telegram
+- `tests/test_hermes_fleet_health_check.py` (146 lines) — 4 tests, all passing
+
+**Final state:** 7402 passed, 277 skipped, 1 xpassed, 0 failures (xdist run)
+
+**Learning added:** L21 — xdist workers sharing same test identity for acquire_scoped_lock cause non-deterministic failures
+

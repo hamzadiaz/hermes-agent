@@ -155,6 +155,12 @@ Downstream symptom: `test_managed_media_gateways.py` tests that expect no `OPENA
 
 **Fix**: add `session_id` to the `HermesCLI` stub in `_make_cli()`. This makes the stub complete regardless of which commands the alias target resolves to.
 
+## L21: xdist workers sharing same test identity for acquire_scoped_lock cause non-deterministic failures (2026-04-19)
+
+`gateway.status.acquire_scoped_lock(scope, identity)` writes a PID lock file to `~/.local/state/hermes/gateway-locks/` (NOT in HERMES_HOME — not isolated by conftest). When multiple xdist workers call `acquire_scoped_lock` with the same identity string (e.g., `/tmp/test-wa-session`), the first worker writes its PID; subsequent workers see that PID, check it's alive (`os.kill(pid, 0)` succeeds — the other worker is still running), and get `(False, {pid: N})`. Sequential runs pass because the same pytest process holds the lock across all tests (`os.getpid() == existing_pid` → re-acquire allowed).
+
+**Fix**: patch `gateway.status.acquire_scoped_lock` to return `(True, None)` in tests that don't exercise the lock mechanism itself. Use a module-level autouse fixture to avoid touching index-based patch lists.
+
 ## L7: All live agents confirmed healthy after fix (2026-04-19)
 - 6 DM bots tested via Telegram: Hermes, Codex, Claude, MALIK, Mark, Buni — all confirmed terminal available after /new
 - Fleet Mission Control: 11/11 running, 0 errors, 0 idle
