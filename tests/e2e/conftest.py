@@ -10,15 +10,35 @@ No LLM, no real platform connections.
 """
 
 import asyncio
+import os
 import sys
 import uuid
 from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from gateway.config import GatewayConfig, Platform, PlatformConfig
 from gateway.platforms.base import MessageEvent, SendResult
 from gateway.session import SessionEntry, SessionSource, build_session_key
+
+
+@pytest.fixture(autouse=True)
+def _reset_yolo_mode():
+    """Restore HERMES_YOLO_MODE after each test.
+
+    /yolo sets os.environ["HERMES_YOLO_MODE"] directly. Without cleanup this
+    persists for the entire test process and causes all approval checks in
+    downstream tests (test_approve_deny_commands.py) to auto-approve.
+    """
+    was_set = "HERMES_YOLO_MODE" in os.environ
+    original = os.environ.get("HERMES_YOLO_MODE")
+    yield
+    if was_set:
+        os.environ["HERMES_YOLO_MODE"] = original
+    else:
+        os.environ.pop("HERMES_YOLO_MODE", None)
 
 
 #Ensure telegram module is available (mock it if not installed)

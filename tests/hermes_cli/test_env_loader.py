@@ -3,7 +3,24 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 from hermes_cli.env_loader import load_hermes_dotenv
+
+
+@pytest.fixture(autouse=True)
+def _restore_os_environ():
+    """Save and restore os.environ around each test.
+
+    load_hermes_dotenv() calls dotenv.load_dotenv() which writes directly to
+    os.environ, bypassing pytest monkeypatch tracking.  Without this fixture,
+    env vars like OPENAI_API_KEY=project-key leak into later tests (e.g.
+    test_managed_media_gateways) that expect the key to be absent.
+    """
+    snapshot = os.environ.copy()
+    yield
+    os.environ.clear()
+    os.environ.update(snapshot)
 
 
 def test_user_env_overrides_stale_shell_values(tmp_path, monkeypatch):

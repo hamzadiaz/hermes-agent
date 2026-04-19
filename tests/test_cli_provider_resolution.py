@@ -4,8 +4,40 @@ import types
 from contextlib import nullcontext
 from types import SimpleNamespace
 
+import pytest
+
 from hermes_cli.auth import AuthError
 from hermes_cli import main as hermes_main
+
+
+@pytest.fixture(autouse=True)
+def _restore_cli_modules():
+    """Restore cli, run_agent, and tools.* in sys.modules after each test.
+
+    _import_cli() pops 'cli', 'run_agent', 'tools', and 'tools.*' from
+    sys.modules, then reimports 'cli' (which reimports 'run_agent'). Without
+    cleanup:
+    - tools.* poison test_memory_tool (MemoryStore.__globals__ from old module)
+    - run_agent/cli poison test_run_agent (_SafeWriter isinstance mismatch: two
+      different run_agent module objects, one per _import_cli() invocation)
+
+    It is safe to restore run_agent and cli between tests because every test in
+    this file starts by calling _import_cli(), which removes and reimports them
+    unconditionally — so pre-test state doesn't matter.
+    """
+    _RESTORE_PREFIXES = ("cli", "run_agent", "tools")
+    snapshot = {
+        k: v for k, v in sys.modules.items()
+        if k in _RESTORE_PREFIXES or any(k.startswith(p + ".") for p in _RESTORE_PREFIXES)
+    }
+    yield
+    for key in list(sys.modules):
+        in_scope = key in _RESTORE_PREFIXES or any(
+            key.startswith(p + ".") for p in _RESTORE_PREFIXES
+        )
+        if in_scope and key not in snapshot:
+            del sys.modules[key]
+    sys.modules.update(snapshot)
 
 
 def _install_prompt_toolkit_stubs():
