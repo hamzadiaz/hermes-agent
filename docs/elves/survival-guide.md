@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 43 complete. Scout 44 next.
+Reason: Open-ended mode active. Scout 44 complete. Scout 45 next.
 ```
 
 ## Current Phase
-SCOUT 43 COMPLETE — provider/routing/toolset audit clean; all Gemini agents have google-gemini custom_providers; all CodeX/Claude agents correct; platform toolset fallback confirmed; 7426/7426 pass.
+SCOUT 44 COMPLETE — flush_memories path correct; was_auto_reset cleared after processing; honcho config empty (disabled) on all agents; Fix B edge cases verified; 7426/7426 pass.
 
 ## Next Exact Batch
-Scout 44: Look for any subtle issues in compress, memory flush, or honcho paths; check if any remaining tests can be hardened against HERMES_HOME leakage
+Scout 45: Look at integration branch status, document merge readiness; check if any test coverage gaps remain for the core fixes
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -69,7 +69,8 @@ Scout 44: Look for any subtle issues in compress, memory flush, or honcho paths;
 - **Scout 41** ✅ Acceptance criteria audit: 5/7 criteria code-verified (no-AGENTS.md injection, recency-recall logic, toolsets+vault Grade A, Fix A+B in place); 2 require live user testing (Opus 4.7 continuity, model switching)
 - **Scout 42** ✅ Fix A/B regression tests verified (test_honcho_lifecycle, test_agent_cache); inject-most-recent logic tested; 108 test-artifact cron sessions benign in FTS5; all 10 agents confirmed running; 7426/7426 pass
 - **Scout 43** ✅ Provider/routing/toolset audit: all Gemini agents have google-gemini custom_providers; alex/malik have flash-lite aux configs; platform toolset fallback confirmed; custom_providers correct; 7426/7426 pass
-- **Scout 44** 🔄 Memory flush / honcho paths / remaining HERMES_HOME isolation checks
+- **Scout 44** ✅ flush_memories auxiliary path correct; was_auto_reset=False cleared after processing (line 2258); honcho empty/disabled on all agents; no additional code changes needed; 7426/7426 pass
+- **Scout 45** 🔄 Integration branch readiness + final test coverage gap analysis
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

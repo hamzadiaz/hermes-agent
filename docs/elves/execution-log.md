@@ -4,6 +4,23 @@
 
 ---
 
+## Scout 44 — flush_memories / honcho / Fix B edge cases (2026-04-20T~09:00Z)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- `flush_memories` path verified: `run_agent.py:5590` uses auxiliary client with `task="flush_memories"` — routes to flash-lite Gemini via all agent configs. Falls back to primary model for Codex Responses API.
+- `was_auto_reset` clearing: confirmed at `gateway/run.py:2258` — cleared after first message in fresh session so no duplicate reset notices.
+- `honcho: {}` on all agents = honcho disabled. No honcho server configured for any agent.
+- Fix B edge case: eviction occurs BEFORE message processing (lines 2203-2204 fire inside `if getattr(session_entry, 'was_auto_reset', False)` block, before `_run_agent` is called). Clean ordering.
+- All HERMES_HOME isolation checks clean — pattern documented in L25, only hermes_state.py needed the dynamic fix.
+- No code changes needed.
+
+**Tests:** 7426/7426 pass (unchanged)
+
+---
+
 ## Scout 43 — Provider/routing/toolset config audit (2026-04-20T~08:30Z)
 
 **Duration:** ~20m
