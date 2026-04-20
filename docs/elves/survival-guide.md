@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 50 complete. Scout 51 next.
+Reason: Open-ended mode active. Scout 52 complete. Scout 53 next.
 ```
 
 ## Current Phase
-SCOUT 50 COMPLETE — All 5 critical fixes now have regression tests (Scout 33 was last missing); 7440/7440 pass.
+SCOUT 52 COMPLETE — Skills hub accuracy verified (no bugs); both topic auto-load skills loadable; vault Grade A; error log clean (test artifacts only); 7440/7440 pass.
 
 ## Next Exact Batch
-Scout 51: Review skills hub accuracy + check if any new test patterns from Scouts 46-50 should be promoted to learnings.md
+Scout 53: Deep audit of context_compressor + session hygiene system; check for compression routing coverage gaps
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -76,7 +76,9 @@ Scout 51: Review skills hub accuracy + check if any new test patterns from Scout
 - **Scout 48** ✅ session_search_tool.py audited; recency injection correct; 4 new recent-mode tests; 7437/7437 pass
 - **Scout 49** ✅ All 5 fixes verified; flush_memories dual-path correct; MCP isolation intact; prompt builder tool-list accurate; 7437/7437
 - **Scout 50** ✅ Scout 33 regression test added (external_process providers); all 5 fixes now have tests; 7440/7440 pass
-- **Scout 51** 🔄 Skills hub accuracy + learnings.md update
+- **Scout 51** ✅ L26+L27 added to learnings.md; L6 updated; 7440/7440 pass
+- **Scout 52** ✅ Skills hub accuracy verified; vault A; error log clean; 7440/7440 pass
+- **Scout 53** 🔄 Context compressor + session hygiene deep audit
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

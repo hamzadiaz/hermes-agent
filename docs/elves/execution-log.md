@@ -4,6 +4,49 @@
 
 ---
 
+## Scout 52 — Skills hub accuracy + broader system stability audit (2026-04-20T~07:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- **Skills hub accuracy audit (full):**
+  - `build_skills_system_prompt` verified: generates 269-line skills index correctly when `skills_list`/`skill_view`/`skill_manage` are available
+  - `_skill_should_show` filtering: 10 existing tests cover all 4 condition types (`fallback_for_toolsets`, `fallback_for_tools`, `requires_toolsets`, `requires_tools`)
+  - `TestBuildSkillsSystemPromptConditional` tests full integration; `TestSkillShouldShow` tests filtering logic
+  - All 97 skills hub tests pass; 111/112 prompt_builder tests pass (1 skip expected)
+  - Both topic auto-load skills found and loadable: `fleet-commander-api` (openclaw-imports/) and `run-optijara-blog-pipeline` (devops/)
+  - Both `cli` and `telegram` platform toolsets include `skills` in config.yaml — correct
+- **Broader stability checks:**
+  - Error log (`errors.log`): tail shows only test artifacts from 06:51-06:59 test runs — zero new production errors
+  - Vault: Grade A at 07:00+ (fresh audit). D at 00:10 is expected nightly pattern (documented in learnings)
+  - Cron: `jobs.json` = 0 user-created jobs; system crons (fleet-health-monitor, vault-audit) are LaunchAgent-managed
+  - Fleet: `ok=True` continuously, 11/11 gateway processes running
+  - 277 skipped tests: all from optional/live dependencies (feishu, voice, docker, ssh, etc.) — expected
+- No code bugs found. No new tests needed. No code changes.
+- 7440/7440 pass.
+
+**Files changed:** None — verification only.
+
+---
+
+## Scout 51 — Learnings update: L26+L27 (2026-04-20T~06:30Z)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- Added **L26**: Active error log is `errors.log*` (rotating), not `gateway.error.log` (legacy, stopped at Scout 36 restart)
+- Added **L27**: Global TOOLSETS mutation in tests requires isolation-safe assertions under xdist (semantic checks instead of count equality)
+- Updated **L6**: Scout 33 fix now notes regression test location (`test_external_process_providers_return_none_without_warning`, parametrized, 3 providers)
+- Committed: `2a7b3bff`
+- 7440/7440 pass.
+
+**Files changed:**
+- `docs/elves/learnings.md` — L26+L27 added; L6 updated
+
+---
+
 ## Scout 50 — Test coverage gaps: Scout 33 regression test (2026-04-20T~12:30Z)
 
 **Duration:** ~20m
