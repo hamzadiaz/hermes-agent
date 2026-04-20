@@ -4,6 +4,27 @@
 
 ---
 
+## Scout 55 — Pre-existing xdist test contamination: root-cause found and fixed (2026-04-20T~09:00Z)
+
+**Duration:** ~45m
+**Status:** Complete ✅
+
+**What happened:**
+- **Root cause found** for 5 pre-existing failures in `tests/agent/test_auxiliary_client.py` when run via xdist within `tests/agent/`:
+  - Several tests do `monkeypatch.setattr("hermes_cli.config.load_config", lambda: config)` followed by `monkeypatch.setattr("hermes_cli.runtime_provider.load_config", lambda: config)`
+  - If `hermes_cli.runtime_provider` has NOT yet been imported when the second setattr runs, the setattr call triggers the FIRST import of the module
+  - During that first import, `from hermes_cli.config import load_config` runs — but `hermes_cli.config.load_config` is ALREADY patched (step 1 of the test ran first), so the module binding gets the lambda, not the real function
+  - Monkeypatch saves this lambda as the "original" to restore after the test
+  - After teardown, `hermes_cli.runtime_provider.load_config` is "restored" to the lambda (stale config) rather than the real function
+  - Subsequent tests that call `_resolve_custom_runtime()` → `resolve_runtime_provider()` → `load_config()` get the stale config with `base_url: http://localhost:1234/v1`, causing tests expecting None to get a real OpenAI client
+- **Fix**: Added `import hermes_cli.runtime_provider  # noqa: F401` at the top of `test_auxiliary_client.py` (before any test patches `load_config`). This ensures the module is loaded with the real `load_config` before any patching occurs, so monkeypatch saves the real function as the "original".
+- **Verified**: 83/83 pass in `tests/agent/test_auxiliary_client.py` (was 3-5 failures in xdist), 7440/7440 full suite.
+
+**Files changed:**
+- `tests/agent/test_auxiliary_client.py`: Added `import hermes_cli.runtime_provider` at top (with explanation comment)
+
+---
+
 ## Scout 54 — flush_memories deep audit + auto-reset flow (Fix B) (2026-04-20T~08:00Z)
 
 **Duration:** ~25m

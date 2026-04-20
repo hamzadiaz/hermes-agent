@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 54 complete. Scout 55 next.
+Reason: Open-ended mode active. Scout 55 complete. Scout 56 next.
 ```
 
 ## Current Phase
-SCOUT 54 COMPLETE — Fix B correct; flush_memories dual-path works for all providers including claude-code; MCP isolation+cleanup in place; 30/30 auto-reset tests pass; 7440/7440 pass.
+SCOUT 55 COMPLETE — Pre-existing xdist contamination root-cause found and fixed: hermes_cli.runtime_provider lazy-import + monkeypatch ordering; 83/83 in test_auxiliary_client.py, 7440/7440 full suite pass.
 
 ## Next Exact Batch
-Scout 55: Broader test coverage scan — identify any remaining coverage gaps in acceptance criteria paths
+Scout 56: Review final acceptance criteria checklist — identify any remaining code-verifiable items or documentation gaps
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -80,7 +80,8 @@ Scout 55: Broader test coverage scan — identify any remaining coverage gaps in
 - **Scout 52** ✅ Skills hub accuracy verified; vault A; error log clean; 7440/7440 pass
 - **Scout 53** ✅ Compression system verified; all 10 agents gemini-3.1-flash-lite-preview; 7440/7440 pass
 - **Scout 54** ✅ Fix B correct; flush_memories dual-path verified; 30/30 auto-reset tests pass
-- **Scout 55** 🔄 Broader test coverage scan — remaining gaps in acceptance criteria paths
+- **Scout 55** ✅ Pre-existing xdist contamination root-cause found and fixed; 83/83 test_auxiliary_client.py; 7440/7440 full suite
+- **Scout 56** 🔄 Final acceptance criteria review — remaining code-verifiable items
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

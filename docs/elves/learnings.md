@@ -274,3 +274,24 @@ After the Scout 36 gateway restart (around 05:21 local / 05:21 UTC), all `gatewa
 - `assert all(validate_toolset(n) for n in get_toolset_names())` — checks semantic validity, not count
 - `assert "known_toolset" in get_toolset_names()` — spot-checks, not count equality
 - `assert "description" in ts and "tools" in ts for ts in get_all_toolsets().values()` — structural validity ignores count
+
+
+## L28: Lazy module imports + monkeypatch ordering = silent test contamination (2026-04-20)
+
+**Symptom**: Tests fail with xdist but pass serially. Tests expecting `(None, None)` from auxiliary client get real `openai.OpenAI` objects. Failures occur for tests that run AFTER other tests which use `monkeypatch.setattr("hermes_cli.config.load_config", ...)`.
+
+**Root cause**: Several tests patch `hermes_cli.config.load_config` AND `hermes_cli.runtime_provider.load_config` via monkeypatch. If `hermes_cli.runtime_provider` has NOT yet been imported when the second `monkeypatch.setattr` call triggers its first import, the module loads with the ALREADY-PATCHED `hermes_cli.config.load_config`. Monkeypatch saves this lambda as the "original". After the test, `hermes_cli.runtime_provider.load_config` is "restored" to the lambda — leaving stale state that makes `_resolve_custom_runtime()` return a test URL for all subsequent tests.
+
+**Why it's xdist-specific**: With serial execution, tests run in file order — tests that would be contaminated happen to run BEFORE the contaminating test. With xdist, tests can run in any order; when the contaminating test runs first in a worker, subsequent tests in the same worker are poisoned.
+
+**Fix**: Pre-import any module that has top-level bindings like `from other_module import func` before patching `other_module.func`. In test files, add the import at module level:
+```python
+import hermes_cli.runtime_provider  # noqa: F401 — ensures module is loaded before tests patch load_config
+```
+
+**Pattern to watch for**: Any combination of:
+1. `monkeypatch.setattr("module_A.some_func", lambda: ...)` (patches the source)
+2. `monkeypatch.setattr("module_B.some_func", lambda: ...)` (patches an import of the same func in B)
+where `module_B` may not be imported yet. Fix: ensure `module_B` is imported at test file top level.
+
+**Fixed 2026-04-20 (Scout 55)**.

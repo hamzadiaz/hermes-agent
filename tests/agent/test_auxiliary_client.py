@@ -7,6 +7,16 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
+# Pre-import hermes_cli.runtime_provider before any test patches hermes_cli.config.load_config.
+# Several tests in this file do: monkeypatch.setattr("hermes_cli.config.load_config", lambda: config)
+# followed by monkeypatch.setattr("hermes_cli.runtime_provider.load_config", lambda: config).
+# If hermes_cli.runtime_provider is first imported *inside* monkeypatch.setattr (triggered when
+# that setattr call imports the module), its load_config binding gets the already-patched
+# hermes_cli.config.load_config (a lambda). Monkeypatch then saves that lambda as the "original"
+# to restore after the test — leaving hermes_cli.runtime_provider.load_config as the lambda
+# rather than the real function, causing subsequent tests to see stale config.
+import hermes_cli.runtime_provider  # noqa: F401 — side-effect import for test isolation
+
 from agent.auxiliary_client import (
     get_text_auxiliary_client,
     get_vision_auxiliary_client,
