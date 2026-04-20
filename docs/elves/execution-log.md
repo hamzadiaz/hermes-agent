@@ -4,6 +4,32 @@
 
 ---
 
+## Scout 63 — Broader exploratory scan: model_switch.py tests (2026-04-20T~12:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `hermes_cli/model_switch.py` had no tests despite being the shared pipeline for both CLI and gateway /model commands
+- Key discovery: switch_model() lazily imports deps inside function body (`from hermes_cli.models import ...`), so patches must target source modules (`hermes_cli.models.*`), not `hermes_cli.model_switch.*`
+- Added `tests/hermes_cli/test_model_switch.py` with 13 tests covering:
+  - Successful provider change: credentials resolved, provider_changed=True
+  - Same provider: provider_changed=False
+  - Credential resolution failure: non-custom vs custom provider error messages
+  - Validation rejection: error message from validation
+  - Validation warning: warning_message field
+  - Auto-detect provider: detect_provider_for_model overrides target provider
+  - is_custom_target with localhost URL
+  - persist from validation result
+  - validate_requested_model exception defaults to accepted=True
+  - is_custom skips auto-detect for custom provider and localhost base_url
+- 7565/7565 pass (up from 7552).
+
+**Files changed:**
+- `tests/hermes_cli/test_model_switch.py`: new file, 13 tests
+
+---
+
 ## Scout 62 — Broader exploratory scan: codex_models.py tests (2026-04-20T~12:10Z)
 
 **Duration:** ~20m
