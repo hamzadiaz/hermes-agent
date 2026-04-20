@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 36 — Full gateway restart + config verification (2026-04-20T10:55Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Identified main gateway (PID 12129) and all 10 agent gateways were still running code from BEFORE Scout 33's external_process fix.
+- Restarted all 11 gateways: `launchctl kickstart -k gui/.../ai.hermes.{gateway,agent.*}`. New PIDs assigned; all running healthy (0 exit codes, Telegram polling confirmed for all).
+- Verified Scout 33 fix active: no new `external_process` WARNINGs in error log post-restart.
+- Fresh vault audit: **Grade A, score=0, issues=0**.
+- Confirmed adonch/musa/redwan auto-detection chain: `_try_custom_endpoint` finds google-gemini endpoint from their config, and explicit `model: gemini-3.1-flash-lite-preview` overrides pro model. Zero auxiliary routing failures in their error logs.
+- Session search recency logic reviewed: inject-most-recent-session mechanism in place — ensures latest session always appears in keyword search results even if FTS5 misses it.
+- Empty content WARNINGs (84 in main log): confirmed normal retry-loop artifacts; not a bug.
+- No code changes needed.
+
+**Files changed:**
+- None (audit + gateway restarts only)
+
+---
+
 ## Scout 35 — mark auxiliary config fix + L24 learning (2026-04-20T10:30Z)
 
 **Duration:** ~20m

@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 35 complete. Scout 36 next.
+Reason: Open-ended mode active. Scout 36 complete. Scout 37 next.
 ```
 
 ## Current Phase
-SCOUT 35 COMPLETE — mark auxiliary config fully explicit (flash-lite); L24 learning added. 7425/7425 tests pass.
+SCOUT 36 COMPLETE — all 11 gateways restarted; Scout 33 fix active; vault Grade A; configs verified; 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 36: Deep acceptance criteria pass — live session checks, remaining gaps, push final state
+Scout 37: Code-level improvements — session search recency improvements, remaining error pattern investigation
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -61,7 +61,8 @@ Scout 36: Deep acceptance criteria pass — live session checks, remaining gaps,
 - **Scout 33** ✅ external_process WARNING downgraded to DEBUG in resolve_provider_client; 7425/7425 pass
 - **Scout 34** ✅ Systemic audit: skills_hub fine (no changes), vault Grade A confirmed, no new error patterns
 - **Scout 35** ✅ mark auxiliary config fixed (flash-lite for session_search/compression/flush_memories); L24 added; 7425/7425 pass
-- **Scout 36** 🔄 Deep acceptance criteria: final state verification, push
+- **Scout 36** ✅ All 11 gateways restarted (Scout 33 fix active); vault Grade A; configs verified; session search recency code confirmed correct
+- **Scout 37** 🔄 Code-level improvements: session search, error patterns
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
