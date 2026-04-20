@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 76 complete. Scout 77 next.
+Reason: Open-ended mode active. Scout 77 complete. Scout 78 next.
 ```
 
 ## Current Phase
-SCOUT 76 COMPLETE — usage_pricing.py helpers 36 tests; 8127/8127 pass. Scout 77 next.
+SCOUT 77 COMPLETE — tts_tool/gateway text helpers 42 tests; 8169/8169 pass. Scout 78 next.
 
 ## Next Exact Batch
-Scout 77: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 78: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -102,7 +102,8 @@ Scout 77: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 74** ✅ hermes_cli/setup.py pure helpers 40 tests; 8021/8021 pass (pre-existing xdist flake)
 - **Scout 75** ✅ anthropic_adapter.py pure helpers 70 tests; 8091/8091 pass
 - **Scout 76** ✅ usage_pricing.py helpers 36 tests (_to_decimal/_to_int/resolve_billing_route/CanonicalUsage); 8127/8127 pass
-- **Scout 77** 🔄 Continue broader exploratory scan
+- **Scout 77** ✅ tts_tool(20)+gateway text helpers(22)=42 tests; 8169/8169 pass
+- **Scout 78** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

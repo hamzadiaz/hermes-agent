@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 77 — Broader exploratory scan: tts_tool + gateway text helpers (2026-04-20T~ongoing)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `tools/tts_tool.py`: no test file existed; added `tests/tools/test_tts_pure_helpers.py` with 20 tests:
+  - `_get_provider()`: returns provider lowercase/stripped, None/empty/missing → DEFAULT_PROVIDER
+  - `_strip_markdown_for_tts()`: code blocks, inline code, bold, italic, links (text preserved), bare URLs removed, headers, list markers, HR, excess newlines collapsed, empty input, result stripped
+- `gateway/run.py`: `_normalize_gateway_text` and `_normalize_whatsapp_identifier` had no tests; added `tests/gateway/test_gateway_text_helpers.py` with 22 tests:
+  - `_normalize_gateway_text()`: None→"", string passthrough, dict .text/.content, text preferred over content, no-match → json, list strings joined, list text-dicts extracted, empty parts skipped, integer coerced
+  - `_normalize_whatsapp_identifier()`: plus stripped, @-suffix stripped, colon-suffix stripped, full JID, None/empty→"", whitespace stripped, LID format
+- 8169/8169 pass
+
+**Files changed:**
+- `tests/tools/test_tts_pure_helpers.py`: new file, 20 tests
+- `tests/gateway/test_gateway_text_helpers.py`: new file, 22 tests
+
+---
+
 ## Scout 76 — Broader exploratory scan: usage_pricing.py helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~10m
