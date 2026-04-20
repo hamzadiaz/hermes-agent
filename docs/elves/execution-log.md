@@ -4,6 +4,35 @@
 
 ---
 
+## Scout 53 — Context compressor + session hygiene deep audit (2026-04-20T~07:30Z)
+
+**Duration:** ~35m
+**Status:** Complete ✅
+
+**What happened:**
+- **Compression system architecture confirmed:**
+  - Two compression paths exist: (1) agent's own `ContextCompressor` during tool loop (fires at 50% context), (2) gateway session hygiene pre-agent (fires at 85% context)
+  - `trajectory_compressor.py` is a data-generation tool only — NOT used in session compression path
+- **Agent-specific configs verified via `~/.hermes-agents/` directory:**
+  - All 10 agents confirmed: `auxiliary.compression.model = gemini-3.1-flash-lite-preview` ✅
+  - All 10 agents confirmed: `auxiliary.session_search.model = gemini-3.1-flash-lite-preview` ✅
+  - All 10 agents confirmed: `auxiliary.flush_memories.model = gemini-3.1-flash-lite-preview` ✅
+  - Previous grep (from grep output) was misleading; YAML parsing confirms all correct
+- **`_compress_context` (run_agent.py:5679) verified:**
+  - Correctly sets `parent_session_id=old_session_id` when creating new post-compression session
+  - Flushes memories before compression (`self.flush_memories(messages, min_turns=0)`)
+  - This is what makes `session_search` correctly exclude parent lineage sessions
+- **Test coverage confirmed:**
+  - `context_compressor.py`: 34 tests ✅
+  - session hygiene (gateway/run.py): 19 tests ✅
+  - compression boundary/persistence/413: 14 pass, 12 skip (live provider deps) ✅
+- No code bugs found. No new tests needed.
+- 7440/7440 pass.
+
+**Files changed:** None — verification only.
+
+---
+
 ## Scout 52 — Skills hub accuracy + broader system stability audit (2026-04-20T~07:00Z)
 
 **Duration:** ~30m
