@@ -3,12 +3,21 @@
 Covers:
 - _normalize_assistant_content(): coerce provider-specific content blocks to plain text
 - _is_destructive_command(): heuristic detection of file-destructive commands
+- _sanitize_surrogates(): replace lone UTF-16 surrogates with U+FFFD
+- _sanitize_messages_surrogates(): in-place surrogate cleanup across messages list
+- _strip_budget_warnings_from_history(): remove _budget_warning keys from tool msgs
 """
 
 import json
 import pytest
 
-from run_agent import _normalize_assistant_content, _is_destructive_command
+from run_agent import (
+    _is_destructive_command,
+    _normalize_assistant_content,
+    _sanitize_messages_surrogates,
+    _sanitize_surrogates,
+    _strip_budget_warnings_from_history,
+)
 
 
 # ── _normalize_assistant_content ─────────────────────────────────────────────
@@ -131,3 +140,126 @@ class TestIsDestructiveCommand:
     def test_word_containing_rm_not_destructive(self):
         """'from' contains 'rm' but not as a standalone command."""
         assert _is_destructive_command("echo from here") is False
+
+
+# ── _sanitize_surrogates ──────────────────────────────────────────────────────
+
+class TestSanitizeSurrogates:
+    def test_plain_text_unchanged(self):
+        assert _sanitize_surrogates("hello world") == "hello world"
+
+    def test_empty_string_unchanged(self):
+        assert _sanitize_surrogates("") == ""
+
+    def test_surrogate_replaced_with_replacement_char(self):
+        text = "hello\ud800world"
+        result = _sanitize_surrogates(text)
+        assert "\ud800" not in result
+        assert "\ufffd" in result
+
+    def test_high_surrogate_replaced(self):
+        text = "a\udbffb"
+        result = _sanitize_surrogates(text)
+        assert "\udbff" not in result
+        assert "\ufffd" in result
+
+    def test_low_surrogate_replaced(self):
+        text = "x\udc00y"
+        result = _sanitize_surrogates(text)
+        assert "\udc00" not in result
+        assert "\ufffd" in result
+
+    def test_multiple_surrogates_all_replaced(self):
+        text = "\ud800\udfff"
+        result = _sanitize_surrogates(text)
+        assert result.count("\ufffd") == 2
+
+    def test_no_surrogates_returns_same_object(self):
+        text = "clean text"
+        result = _sanitize_surrogates(text)
+        assert result is text
+
+
+# ── _sanitize_messages_surrogates ────────────────────────────────────────────
+
+class TestSanitizeMessagesSurrogates:
+    def test_empty_list_returns_false(self):
+        assert _sanitize_messages_surrogates([]) is False
+
+    def test_no_surrogates_returns_false(self):
+        messages = [{"role": "user", "content": "hello"}]
+        assert _sanitize_messages_surrogates(messages) is False
+
+    def test_surrogate_in_content_string_replaced(self):
+        messages = [{"role": "user", "content": "bad\ud800char"}]
+        result = _sanitize_messages_surrogates(messages)
+        assert result is True
+        assert "\ud800" not in messages[0]["content"]
+
+    def test_surrogate_in_list_content_text_replaced(self):
+        messages = [{"role": "user", "content": [{"type": "text", "text": "bad\ud800"}]}]
+        result = _sanitize_messages_surrogates(messages)
+        assert result is True
+        assert "\ud800" not in messages[0]["content"][0]["text"]
+
+    def test_non_dict_messages_skipped_without_crash(self):
+        messages = ["not a dict", None, {"role": "user", "content": "clean"}]
+        assert _sanitize_messages_surrogates(messages) is False
+
+    def test_message_without_content_key_skipped(self):
+        messages = [{"role": "user"}]
+        assert _sanitize_messages_surrogates(messages) is False
+
+    def test_mutates_in_place(self):
+        messages = [{"role": "user", "content": "bad\ud800char"}]
+        _sanitize_messages_surrogates(messages)
+        assert "\ufffd" in messages[0]["content"]
+
+
+# ── _strip_budget_warnings_from_history ──────────────────────────────────────
+
+class TestStripBudgetWarningsFromHistory:
+    def test_empty_list_no_error(self):
+        messages = []
+        _strip_budget_warnings_from_history(messages)
+        assert messages == []
+
+    def test_non_tool_messages_untouched(self):
+        messages = [{"role": "user", "content": "_budget_warning present"}]
+        _strip_budget_warnings_from_history(messages)
+        assert "_budget_warning" in messages[0]["content"]
+
+    def test_json_budget_warning_key_removed(self):
+        payload = {"result": "done", "_budget_warning": "Iteration 5/10."}
+        messages = [{"role": "tool", "content": json.dumps(payload)}]
+        _strip_budget_warnings_from_history(messages)
+        parsed = json.loads(messages[0]["content"])
+        assert "_budget_warning" not in parsed
+        assert parsed["result"] == "done"
+
+    def test_plain_text_budget_warning_stripped(self):
+        content = "ok\n[BUDGET WARNING: Iteration 5/10. Be concise.]"
+        messages = [{"role": "tool", "content": content}]
+        _strip_budget_warnings_from_history(messages)
+        assert "[BUDGET" not in messages[0]["content"]
+        assert "ok" in messages[0]["content"]
+
+    def test_clean_tool_message_untouched(self):
+        payload = {"result": "all good"}
+        content = json.dumps(payload)
+        messages = [{"role": "tool", "content": content}]
+        _strip_budget_warnings_from_history(messages)
+        assert json.loads(messages[0]["content"]) == payload
+
+    def test_non_tool_role_with_budget_text_not_stripped(self):
+        messages = [{"role": "assistant", "content": "[BUDGET WARNING: Iteration 1/10. tight]"}]
+        _strip_budget_warnings_from_history(messages)
+        assert "[BUDGET" in messages[0]["content"]
+
+    def test_mutates_in_place(self):
+        payload = {"data": "x", "_budget_warning": "tight"}
+        msg = {"role": "tool", "content": json.dumps(payload)}
+        messages = [msg]
+        _strip_budget_warnings_from_history(messages)
+        parsed = json.loads(messages[0]["content"])
+        assert "_budget_warning" not in parsed
