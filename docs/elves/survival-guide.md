@@ -18,17 +18,17 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 20 complete. Scout 21 next (codebase hardening, edge case audit).
+Reason: Open-ended mode active. Scout 21 complete. Scout 22 next (Obsidian vault audit, broader codebase QA).
 ```
 
 ## Current Phase
-SCOUT 20 COMPLETE — 7404/7404 tests pass. Gateway audit clean. UI improved. 11/11 agents running.
+SCOUT 21 COMPLETE — 7421/7421 tests pass (+17 new). MCP fix and dispatch fix now covered by unit tests.
 
 ## Next Exact Batch
-Scout 21: Possible actions:
-- Review MCP dynamic tool discovery cleanup (deregister + repave) for any edge cases
-- Audit `claude_code_client.py` streaming path for correctness after MCP fix
-- Look for any final acceptance criteria that can be auto-verified without user interaction
+Scout 22: Possible actions:
+- Check Obsidian vault working-context.md accuracy (update to reflect Scout 20-21 work)
+- Audit the gateway's session auto-reset path for any edge cases not covered by existing tests
+- Look at whether agent identity files (SOUL.md) are being loaded correctly post-restart
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -49,6 +49,7 @@ Scout 21: Possible actions:
 - **Scout 18** ✅ registry.dispatch None-args bug fixed: web_search (and any tool) no longer crashes when model emits tool call with null args
 - **Scout 19** ✅ Final xdist: 7140/7140 pass (0 fail, clean after all fixes)
 - **Scout 20** ✅ Gateway audit: no new None-arg patterns; UI: Open button dims when stopped; 7404/7404 tests pass
+- **Scout 21** ✅ Unit tests added: 16 for MCP isolation fix + 2 for None-args dispatch; 7421/7421 total
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

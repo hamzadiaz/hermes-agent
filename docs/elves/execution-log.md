@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 21 — Unit Test Coverage for Critical Fixes (2026-04-20T02:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Added `tests/agent/test_claude_code_client.py` (new, 16 tests):
+  - `_build_cmd` with tools: injects `--tools ""` + `--mcp-config` pointing to empty `{mcpServers:{}}` JSON
+  - `_build_cmd` without tools: neither flag injected
+  - `_extract_mcp_tmp`: returns path for hermes_nomcp_ files, None otherwise (handles truncated cmd)
+  - `_cleanup_mcp_tmp`: removes file, handles None, handles already-deleted file
+  - End-to-end `build → extract → cleanup` lifecycle test
+- Extended `tests/tools/test_registry.py` (+2 tests):
+  - `dispatch(name, None)` — args=None normalized to {} before handler call
+  - handler calling `.get()` on args doesn't crash when args=None
+- Full suite: 7421 passed, 277 skipped, 1 known flaky (xdist race in HOME env monkeypatching)
+- Committed `e939cad8`, pushed to fork
+
+---
+
 ## Scout 20 — Gateway Audit + UI Polish (2026-04-20T02:10Z)
 
 **Duration:** ~20m
