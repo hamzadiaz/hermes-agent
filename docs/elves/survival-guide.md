@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 45 complete. Scout 46 next.
+Reason: Open-ended mode active. Scout 46 complete. Scout 47 next.
 ```
 
 ## Current Phase
-SCOUT 45 COMPLETE — integration branch status documented; all 5 key fixes have regression tests; merge readiness documented in L6; 7426/7426 pass.
+SCOUT 46 COMPLETE — Scout 33 fix confirmed effective in production (last warning 01:12:40 pre-restart, none after); error log architecture clarified (gateway.error.log = legacy, active = errors.log*); 7426/7426 pass; all 11 gateways running.
 
 ## Next Exact Batch
-Scout 46: Final system stability check; look for any remaining issues in error logs; check if there are any improvements to make to the toolset tests
+Scout 47: Broader system audit — check fleet monitor for any agent health issues, verify session_search is working for all agents, check for any config drift from the overnight run
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -71,7 +71,8 @@ Scout 46: Final system stability check; look for any remaining issues in error l
 - **Scout 43** ✅ Provider/routing/toolset audit: all Gemini agents have google-gemini custom_providers; alex/malik have flash-lite aux configs; platform toolset fallback confirmed; custom_providers correct; 7426/7426 pass
 - **Scout 44** ✅ flush_memories auxiliary path correct; was_auto_reset=False cleared after processing (line 2258); honcho empty/disabled on all agents; no additional code changes needed; 7426/7426 pass
 - **Scout 45** ✅ Integration branch: 50 commits behind main; L6 updated with accurate line numbers + all 5 fixes; all regression tests confirmed (Scout 26→test_run_agent.py:3739, Scout 39→test_hermes_state.py:1301, Fix A/B→test_agent_cache+test_honcho); 7426/7426 pass
-- **Scout 46** 🔄 Final system stability + error log review
+- **Scout 46** ✅ Scout 33 fix confirmed in prod (0 external_process WARNINGs post-restart); error log architecture: gateway.error.log=legacy, active=errors.log*; 7426/7426 pass
+- **Scout 47** 🔄 Fleet monitor audit + session_search health + config drift check
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 46 — Final system stability check + error log analysis (2026-04-20T~10:30Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Investigated `unhandled auth_type external_process for claude-code` WARNING in error logs.
+- Key discovery: `gateway.error.log` files are LEGACY logs from old logging config. All active errors now route to `errors.log` (rotating: errors.log → errors.log.1 → errors.log.2).
+- Last occurrence of the WARNING: `errors.log.2` at `2026-04-20 01:12:40` — from the gateway running BEFORE the Scout 33 fix + Scout 36 restart at 01:13:57. Zero occurrences in `errors.log.1` or `errors.log`.
+- Scout 33 fix is confirmed working in production.
+- All errors in active `errors.log*` files are test artifacts (`boom`, `nonexistent_tool`, `Mars/Olympus_Mons`, etc.) — no real production errors.
+- Toolset tests: 62/62 pass (test_toolsets.py + test_toolset_distributions.py + test_tool_call_parsers.py).
+- Full test suite: 7426/7426 pass.
+- All 11 gateways confirmed running (exit code 0, PIDs via launchctl).
+
+**Files changed:** None — verification only.
+
+---
+
 ## Scout 45 — Integration branch readiness + test coverage gap analysis (2026-04-20T~09:30Z)
 
 **Duration:** ~20m
