@@ -1676,3 +1676,23 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7772/7772 pass (+45 from Scout 67)
 
 **Commit:** aab6bea0 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 68 — 2026-04-20
+
+**Objective:** Coverage gaps — credential_pool pure helpers
+
+**New file:** `tests/agent/test_credential_pool_helpers.py` — 34 tests
+
+### Functions covered:
+- `_next_priority()`: empty list → 0, max priority + 1
+- `_is_manual_source()`: exact "manual" match, "manual:" prefix, uppercase, partial-word no-match, None
+- `_exhausted_ttl()`: 429 → 3600s, None/other → 86400s
+- `_normalize_custom_pool_name()`: strip, lower, space→hyphen
+- `_iter_custom_providers()`: valid entries, non-dict skip, missing-name skip, non-list config, None config
+- `label_from_token()`: email/preferred_username/upn priority order, fallback, non-JWT, empty token, whitespace email skip
+
+**Results:** 7806/7806 pass (+34 from Scout 68)
+
+**Commit:** 2762a4e6 — pushed to fork (hamzadiaz/hermes-agent)
