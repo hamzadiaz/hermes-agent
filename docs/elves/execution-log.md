@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 38 — Deep code audit + fleet health verification (2026-04-20T12:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited `context_compressor.py` compression routing: `compression_summary_model` = None for all agents (empty `summary_model: ''` or absent). Model comes entirely from `auxiliary.compression.model`. No summary_model override issues.
+- Verified `session_search` tool invocation (run_agent.py:5802): `current_session_id=self.session_id` correctly passed so current session is excluded from results.
+- Verified injection-of-most-recent logic handles edge cases: current session excluded, parent lineage excluded, falls through gracefully if only 1 session exists.
+- Upstream integration branch: 42 commits behind current main (expected — it was the starting point). Human merge required per non-negotiable #1.
+- Fleet health monitor: running every 10 min, last check at 03:35 UTC, `ok=True` all checks.
+- mark and buni (previously crashed) now running cleanly at exit code 0.
+- `gpt-5.2-codex not supported` errors (72 in malik, 32 in main) are all pre-fix historical entries.
+- No code changes needed.
+
+**Files changed:**
+- None (deep audit only)
+
+---
+
 ## Scout 37 — Final acceptance criteria audit (2026-04-20T11:30Z)
 
 **Duration:** ~30m
