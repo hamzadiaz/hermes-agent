@@ -3694,6 +3694,96 @@ class TestMemoryNudgeCounterPersistence:
         assert "self._iters_since_skill = 0" not in preamble
 
 
+class TestContextCwdFallback:
+    """_build_system_prompt must use TERMINAL_CWD → HERMES_HOME → None, not os.getcwd().
+
+    This prevents the hermes-agent repo's AGENTS.md (developer docs) from being
+    injected into production gateway sessions when WorkingDirectory is the repo
+    dir and TERMINAL_CWD is not set.
+    """
+
+    def _make_agent(self):
+        """Create an AIAgent with context-file discovery enabled."""
+        with (
+            patch("run_agent.get_tool_definitions", return_value=_make_tool_defs("web_search")),
+            patch("run_agent.check_toolset_requirements", return_value={}),
+            patch("run_agent.OpenAI"),
+        ):
+            a = AIAgent(
+                api_key="test-key-1234567890",
+                quiet_mode=True,
+                skip_context_files=False,
+                skip_memory=True,
+            )
+            a.client = MagicMock()
+            return a
+
+    def test_uses_terminal_cwd_when_set(self, monkeypatch, tmp_path):
+        """TERMINAL_CWD should be passed to build_context_files_prompt as cwd."""
+        cwd_dir = tmp_path / "workspace"
+        cwd_dir.mkdir()
+        monkeypatch.setenv("TERMINAL_CWD", str(cwd_dir))
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+
+        agent = self._make_agent()
+
+        captured_cwd = []
+        with patch("run_agent.build_context_files_prompt",
+                   side_effect=lambda cwd=None, skip_soul=False: (captured_cwd.append(cwd) or "")):
+            agent._build_system_prompt()
+
+        assert len(captured_cwd) == 1
+        assert str(captured_cwd[0]) == str(cwd_dir)
+
+    def test_falls_back_to_hermes_home_when_terminal_cwd_unset(self, monkeypatch, tmp_path):
+        """When TERMINAL_CWD is not set, HERMES_HOME should be used (not os.getcwd())."""
+        hermes_home = tmp_path / "hermes_home"
+        hermes_home.mkdir()
+        monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+        monkeypatch.delenv("TERMINAL_CWD", raising=False)
+
+        agent = self._make_agent()
+
+        captured_cwd = []
+        with patch("run_agent.build_context_files_prompt",
+                   side_effect=lambda cwd=None, skip_soul=False: (captured_cwd.append(cwd) or "")):
+            agent._build_system_prompt()
+
+        assert len(captured_cwd) == 1
+        assert str(captured_cwd[0]) == str(hermes_home)
+
+    def test_hermes_home_dir_without_agents_md_injects_nothing(self, monkeypatch, tmp_path):
+        """HERMES_HOME with no AGENTS.md must produce no context_files_prompt.
+
+        This is the key regression guard: the repo's AGENTS.md (listing developer
+        tools like terminal_tool.py, file_tools.py) must NOT be injected into
+        production sessions when TERMINAL_CWD is unset.
+        """
+        hermes_home = tmp_path / "hermes_home"
+        hermes_home.mkdir()
+        # Ensure no AGENTS.md in hermes_home
+        assert not (hermes_home / "AGENTS.md").exists()
+
+        monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+        monkeypatch.delenv("TERMINAL_CWD", raising=False)
+
+        agent = self._make_agent()
+
+        # Use the real build_context_files_prompt (no mock) — it should find nothing
+        from agent.prompt_builder import build_context_files_prompt as _real_bcfp
+        with patch("run_agent.build_context_files_prompt", wraps=_real_bcfp) as mock_bcfp:
+            prompt = agent._build_system_prompt()
+
+        assert mock_bcfp.called
+        call_kwargs = mock_bcfp.call_args[1]
+        call_cwd = call_kwargs.get("cwd")
+        assert str(call_cwd) == str(hermes_home)
+        # No AGENTS.md content in the system prompt
+        assert "AGENTS.md" not in prompt
+        assert "terminal_tool" not in prompt
+        assert "file_tools" not in prompt
+
+
 class TestDeadRetryCode:
     """Unreachable retry_count >= max_retries after raise must not exist."""
 
