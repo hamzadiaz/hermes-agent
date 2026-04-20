@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 65 complete. Scout 66 next.
+Reason: Open-ended mode active. Scout 66 complete. Scout 67 next.
 ```
 
 ## Current Phase
-SCOUT 65 COMPLETE — gateway/status.py pure helpers 32 tests added (was 0); 7656/7656 pass. Scout 66 next.
+SCOUT 66 COMPLETE — colors(12) + trajectory(15) + skill_utils(44) = 71 tests; 7727/7727 pass. Scout 67 next.
 
 ## Next Exact Batch
-Scout 66: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 67: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -91,7 +91,8 @@ Scout 66: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 63** ✅ model_switch.py 13 tests added (was 0); 7565/7565 pass
 - **Scout 64** ✅ auth.py pure helpers 59 tests added (was 0); 7624/7624 pass
 - **Scout 65** ✅ gateway/status.py pure helpers 32 tests added (was 0); 7656/7656 pass
-- **Scout 66** 🔄 Continue broader exploratory scan
+- **Scout 66** ✅ colors(12)+trajectory(15)+skill_utils(44)=71 tests; 7727/7727 pass
+- **Scout 67** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

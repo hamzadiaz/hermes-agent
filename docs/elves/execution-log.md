@@ -1638,3 +1638,21 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7656/7656 pass (+32 from Scout 65)
 
 **Commit:** d5bbf588 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 66 — 2026-04-20
+
+**Objective:** Coverage gaps — colors, trajectory, skill_utils
+
+### New files:
+- `tests/hermes_cli/test_colors.py` — 12 tests: should_use_color() (NO_COLOR/TERM=dumb/non-TTY/TTY) + color() (no-op vs ANSI codes)
+- `tests/agent/test_trajectory.py` — 15 tests: convert_scratchpad_to_think() tag replacement (empty/none/no-tags/single/multiple blocks) + has_incomplete_scratchpad() (open-without-close detection, simple substring semantics)
+- `tests/agent/test_skill_utils.py` — 44 tests: parse_frontmatter() (YAML/nested/fallback/unclosed), skill_matches_platform() (all PLATFORM_MAP entries + direct match), extract_skill_conditions() (all 4 keys + non-dict handling), extract_skill_description() (60-char truncation + quote strip), _normalize_string_set() (None/str/list/empty), iter_skill_index_files() (walk/exclude-dotdirs/sorted)
+
+### Fix during tests:
+- `test_multiple_blocks_last_open_returns_true` → was wrong. `has_incomplete_scratchpad()` uses simple substring check: if ANY `</REASONING_SCRATCHPAD>` exists, returns False. Corrected assertion + doc comment.
+
+**Results:** 7727/7727 pass (+71 from Scout 66)
+
+**Commit:** 64649000 — pushed to fork (hamzadiaz/hermes-agent)
