@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 68 complete. Scout 69 next.
+Reason: Open-ended mode active. Scout 69 complete. Scout 70 next.
 ```
 
 ## Current Phase
-SCOUT 68 COMPLETE — credential_pool helpers 34 tests; 7806/7806 pass. Scout 69 next.
+SCOUT 69 COMPLETE — context_references pure helpers 43 tests; 7849/7849 pass. Scout 70 next.
 
 ## Next Exact Batch
-Scout 69: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 70: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -94,7 +94,8 @@ Scout 69: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 66** ✅ colors(12)+trajectory(15)+skill_utils(44)=71 tests; 7727/7727 pass
 - **Scout 67** ✅ managed_tool_gateway(+16)+runtime_provider_helpers(29)=45 tests; 7772/7772 pass
 - **Scout 68** ✅ credential_pool helpers 34 tests; 7806/7806 pass
-- **Scout 69** 🔄 Continue broader exploratory scan
+- **Scout 69** ✅ context_references pure helpers 43 tests; 7849/7849 pass
+- **Scout 70** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

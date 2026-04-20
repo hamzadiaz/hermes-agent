@@ -1696,3 +1696,21 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7806/7806 pass (+34 from Scout 68)
 
 **Commit:** 2762a4e6 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 69 — 2026-04-20
+
+**Objective:** Coverage gaps — context_references pure helpers
+
+**New file:** `tests/agent/test_context_references.py` — 43 tests
+
+### Functions covered:
+- `_strip_trailing_punctuation()`: trailing punct chars, unmatched close brackets, matched brackets preserved
+- `_code_fence_language()`: all 11 extension mappings (py/js/ts/tsx/jsx/json/md/sh/yml/yaml/toml), unknown, no extension, case-insensitive suffix
+- `parse_context_references()`: @diff/@staged (simple refs), @file/@folder/@git/@url (kind refs), file line range (10-20), single line, trailing punct stripped from target, multiple refs, position tracking, word-prefix no-match
+- `_remove_reference_tokens()`: empty refs passthrough, single removal, multi removal, whitespace collapsing, result stripped
+
+**Results:** 7849/7849 pass (+43 from Scout 69)
+
+**Commit:** cb6c1ba9 — pushed to fork (hamzadiaz/hermes-agent)
