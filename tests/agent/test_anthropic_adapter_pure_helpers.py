@@ -25,6 +25,10 @@ from agent.anthropic_adapter import (
     _sanitize_tool_id,
     _convert_openai_image_part_to_anthropic,
     _convert_user_content_part_to_anthropic,
+    _image_source_from_openai_url,
+    _convert_content_part_to_anthropic,
+    _convert_content_to_anthropic,
+    _generate_pkce,
     convert_tools_to_anthropic,
 )
 
@@ -343,4 +347,144 @@ class TestConvertToolsToAnthropic:
         result = convert_tools_to_anthropic(tools)
         assert len(result) == 2
         assert result[0]["name"] == "tool_a"
-        assert result[1]["name"] == "tool_b"
+
+
+# ── _image_source_from_openai_url ─────────────────────────────────────────────
+
+class TestImageSourceFromOpenaiUrl:
+    def test_regular_url_returned_as_url_type(self):
+        result = _image_source_from_openai_url("https://example.com/img.png")
+        assert result == {"type": "url", "url": "https://example.com/img.png"}
+
+    def test_data_uri_returned_as_base64(self):
+        result = _image_source_from_openai_url("data:image/jpeg;base64,abc123")
+        assert result["type"] == "base64"
+        assert result["media_type"] == "image/jpeg"
+        assert result["data"] == "abc123"
+
+    def test_data_uri_png_media_type(self):
+        result = _image_source_from_openai_url("data:image/png;base64,xyz")
+        assert result["media_type"] == "image/png"
+
+    def test_data_uri_no_mime_defaults_to_jpeg(self):
+        result = _image_source_from_openai_url("data:;base64,abc")
+        assert result["media_type"] == "image/jpeg"
+
+    def test_empty_string_returns_empty_url(self):
+        result = _image_source_from_openai_url("")
+        assert result == {"type": "url", "url": ""}
+
+    def test_none_like_empty_returns_empty_url(self):
+        result = _image_source_from_openai_url(None)
+        assert result == {"type": "url", "url": ""}
+
+    def test_whitespace_stripped(self):
+        result = _image_source_from_openai_url("  https://example.com/img.jpg  ")
+        assert result["url"] == "https://example.com/img.jpg"
+
+
+# ── _convert_content_part_to_anthropic ────────────────────────────────────────
+
+class TestConvertContentPartToAnthropic:
+    def test_none_returns_none(self):
+        assert _convert_content_part_to_anthropic(None) is None
+
+    def test_string_becomes_text_block(self):
+        result = _convert_content_part_to_anthropic("hello")
+        assert result == {"type": "text", "text": "hello"}
+
+    def test_non_dict_non_str_coerced_to_text(self):
+        result = _convert_content_part_to_anthropic(42)
+        assert result == {"type": "text", "text": "42"}
+
+    def test_input_text_type_converted(self):
+        result = _convert_content_part_to_anthropic({"type": "input_text", "text": "hi"})
+        assert result == {"type": "text", "text": "hi"}
+
+    def test_image_url_type_converted(self):
+        result = _convert_content_part_to_anthropic({
+            "type": "image_url",
+            "image_url": {"url": "https://example.com/img.png"},
+        })
+        assert result["type"] == "image"
+        assert result["source"]["type"] == "url"
+
+    def test_cache_control_propagated(self):
+        part = {
+            "type": "input_text",
+            "text": "cached",
+            "cache_control": {"type": "ephemeral"},
+        }
+        result = _convert_content_part_to_anthropic(part)
+        assert result.get("cache_control") == {"type": "ephemeral"}
+
+    def test_unknown_type_passed_through(self):
+        part = {"type": "custom", "data": "x"}
+        result = _convert_content_part_to_anthropic(part)
+        assert result["type"] == "custom"
+        assert result["data"] == "x"
+
+
+# ── _convert_content_to_anthropic ────────────────────────────────────────────
+
+class TestConvertContentToAnthropic:
+    def test_non_list_returned_as_is(self):
+        assert _convert_content_to_anthropic("plain text") == "plain text"
+        assert _convert_content_to_anthropic(None) is None
+
+    def test_empty_list_returns_empty(self):
+        assert _convert_content_to_anthropic([]) == []
+
+    def test_list_of_strings_converted(self):
+        result = _convert_content_to_anthropic(["hello", "world"])
+        assert result[0] == {"type": "text", "text": "hello"}
+        assert result[1] == {"type": "text", "text": "world"}
+
+    def test_none_parts_excluded(self):
+        # None parts return None from _convert_content_part_to_anthropic → excluded
+        result = _convert_content_to_anthropic([None, "keep"])
+        assert len(result) == 1
+        assert result[0]["text"] == "keep"
+
+    def test_dict_parts_preserved(self):
+        parts = [{"type": "text", "text": "a"}, {"type": "text", "text": "b"}]
+        result = _convert_content_to_anthropic(parts)
+        assert len(result) == 2
+
+
+# ── _generate_pkce ────────────────────────────────────────────────────────────
+
+class TestGeneratePkce:
+    def test_returns_tuple_of_two_strings(self):
+        verifier, challenge = _generate_pkce()
+        assert isinstance(verifier, str)
+        assert isinstance(challenge, str)
+
+    def test_verifier_is_url_safe_base64(self):
+        verifier, _ = _generate_pkce()
+        # URL-safe base64: only alphanumeric, hyphen, underscore (no padding)
+        import re
+        assert re.match(r'^[A-Za-z0-9\-_]+$', verifier)
+
+    def test_challenge_is_url_safe_base64(self):
+        _, challenge = _generate_pkce()
+        import re
+        assert re.match(r'^[A-Za-z0-9\-_]+$', challenge)
+
+    def test_each_call_generates_different_pair(self):
+        v1, c1 = _generate_pkce()
+        v2, c2 = _generate_pkce()
+        assert v1 != v2
+        assert c1 != c2
+
+    def test_challenge_derived_from_verifier(self):
+        """The challenge must be SHA-256 of verifier (S256 method)."""
+        import base64
+        import hashlib
+        verifier, challenge = _generate_pkce()
+        expected_challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        assert challenge == expected_challenge

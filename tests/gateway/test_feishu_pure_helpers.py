@@ -9,6 +9,9 @@ Covers:
 - _render_text_element(): render a Feishu text element to Markdown
 - _render_code_block_element(): render a Feishu code block element to Markdown fence
 - _strip_markdown_to_plain_text(): strip Markdown formatting to plain text
+- _to_post_payload(): extract title+content dict from a candidate dict
+- _resolve_locale_payload(): resolve locale-keyed post payload
+- _resolve_post_payload(): top-level post payload resolution with nested unwrapping
 """
 
 import pytest
@@ -22,6 +25,9 @@ from gateway.platforms.feishu import (
     _render_text_element,
     _render_code_block_element,
     _strip_markdown_to_plain_text,
+    _to_post_payload,
+    _resolve_locale_payload,
+    _resolve_post_payload,
 )
 
 
@@ -276,3 +282,90 @@ class TestStripMarkdownToPlainText:
 
     def test_empty_string_returns_empty(self):
         assert _strip_markdown_to_plain_text("") == ""
+
+
+# ── _to_post_payload ──────────────────────────────────────────────────────────
+
+class TestToPostPayload:
+    def test_valid_dict_with_content_list_returned(self):
+        candidate = {"content": [["text"]], "title": "Hello"}
+        result = _to_post_payload(candidate)
+        assert result == {"title": "Hello", "content": [["text"]]}
+
+    def test_missing_content_returns_empty(self):
+        assert _to_post_payload({"title": "No Content"}) == {}
+
+    def test_content_not_list_returns_empty(self):
+        assert _to_post_payload({"content": "string", "title": "T"}) == {}
+
+    def test_none_returns_empty(self):
+        assert _to_post_payload(None) == {}
+
+    def test_non_dict_returns_empty(self):
+        assert _to_post_payload("not a dict") == {}
+        assert _to_post_payload(42) == {}
+
+    def test_missing_title_defaults_to_empty_string(self):
+        result = _to_post_payload({"content": [[]]})
+        assert result["title"] == ""
+
+    def test_none_title_defaults_to_empty_string(self):
+        result = _to_post_payload({"content": [[]], "title": None})
+        assert result["title"] == ""
+
+
+# ── _resolve_locale_payload ───────────────────────────────────────────────────
+
+class TestResolveLocalePayload:
+    def test_direct_post_payload_returned(self):
+        payload = {"content": [["text"]], "title": "Direct"}
+        result = _resolve_locale_payload(payload)
+        assert result["title"] == "Direct"
+
+    def test_en_us_locale_found(self):
+        payload = {"en_us": {"content": [["text"]], "title": "English"}}
+        result = _resolve_locale_payload(payload)
+        assert result["title"] == "English"
+
+    def test_zh_cn_locale_found_as_fallback(self):
+        payload = {"zh_cn": {"content": [["text"]], "title": "Chinese"}}
+        result = _resolve_locale_payload(payload)
+        assert result["title"] == "Chinese"
+
+    def test_non_dict_returns_empty(self):
+        assert _resolve_locale_payload(None) == {}
+        assert _resolve_locale_payload("string") == {}
+
+    def test_no_valid_locale_returns_empty(self):
+        assert _resolve_locale_payload({"unknown_key": {"no_content": True}}) == {}
+
+    def test_any_nested_post_payload_found(self):
+        payload = {"custom_locale": {"content": [["x"]], "title": "Custom"}}
+        result = _resolve_locale_payload(payload)
+        assert result["title"] == "Custom"
+
+
+# ── _resolve_post_payload ─────────────────────────────────────────────────────
+
+class TestResolvePostPayload:
+    def test_direct_post_payload_returned(self):
+        payload = {"content": [["text"]], "title": "Direct"}
+        result = _resolve_post_payload(payload)
+        assert result["title"] == "Direct"
+
+    def test_nested_under_post_key(self):
+        payload = {"post": {"en_us": {"content": [["text"]], "title": "Nested"}}}
+        result = _resolve_post_payload(payload)
+        assert result["title"] == "Nested"
+
+    def test_locale_at_top_level(self):
+        payload = {"en_us": {"content": [["text"]], "title": "TopLocale"}}
+        result = _resolve_post_payload(payload)
+        assert result["title"] == "TopLocale"
+
+    def test_non_dict_returns_empty(self):
+        assert _resolve_post_payload(None) == {}
+        assert _resolve_post_payload("string") == {}
+
+    def test_empty_dict_returns_empty(self):
+        assert _resolve_post_payload({}) == {}

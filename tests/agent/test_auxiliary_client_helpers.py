@@ -5,16 +5,18 @@ Covers:
 - _pool_runtime_base_url(): extract base URL from credential pool entry
 - _nous_api_key(): extract best API key from Nous provider state dict
 - _normalize_vision_provider(): normalize vision provider string
+- _convert_content_for_responses(): convert chat.completions content to Responses API format
 """
 
 import pytest
 from types import SimpleNamespace
 
 from agent.auxiliary_client import (
+    _convert_content_for_responses,
+    _normalize_vision_provider,
+    _nous_api_key,
     _pool_runtime_api_key,
     _pool_runtime_base_url,
-    _nous_api_key,
-    _normalize_vision_provider,
 )
 
 
@@ -129,6 +131,68 @@ class TestNormalizeVisionProvider:
 
     def test_whitespace_stripped(self):
         assert _normalize_vision_provider("  auto  ") == "auto"
+
+
+# ── _convert_content_for_responses ───────────────────────────────────────────
+
+class TestConvertContentForResponses:
+    def test_string_returned_as_is(self):
+        assert _convert_content_for_responses("plain text") == "plain text"
+
+    def test_empty_string_returned_as_is(self):
+        assert _convert_content_for_responses("") == ""
+
+    def test_none_returns_empty(self):
+        assert _convert_content_for_responses(None) == ""
+
+    def test_empty_list_returns_empty_string(self):
+        assert _convert_content_for_responses([]) == ""
+
+    def test_text_part_converted_to_input_text(self):
+        content = [{"type": "text", "text": "hello world"}]
+        result = _convert_content_for_responses(content)
+        assert result == [{"type": "input_text", "text": "hello world"}]
+
+    def test_image_url_converted_to_input_image(self):
+        content = [{"type": "image_url", "image_url": {"url": "https://example.com/img.png"}}]
+        result = _convert_content_for_responses(content)
+        assert result[0] == {"type": "input_image", "image_url": "https://example.com/img.png"}
+
+    def test_image_url_detail_preserved(self):
+        content = [{"type": "image_url", "image_url": {"url": "https://ex.com/img.png", "detail": "high"}}]
+        result = _convert_content_for_responses(content)
+        assert result[0].get("detail") == "high"
+
+    def test_already_responses_format_passed_through(self):
+        content = [{"type": "input_text", "text": "already converted"}]
+        result = _convert_content_for_responses(content)
+        assert result[0] == {"type": "input_text", "text": "already converted"}
+
+    def test_already_input_image_passed_through(self):
+        content = [{"type": "input_image", "image_url": "data:image/png;base64,abc"}]
+        result = _convert_content_for_responses(content)
+        assert result[0]["type"] == "input_image"
+
+    def test_unknown_part_type_with_text_preserved(self):
+        content = [{"type": "unknown", "text": "fallback"}]
+        result = _convert_content_for_responses(content)
+        assert result[0] == {"type": "input_text", "text": "fallback"}
+
+    def test_non_dict_items_in_list_excluded(self):
+        content = ["raw_string", {"type": "text", "text": "keep"}]
+        result = _convert_content_for_responses(content)
+        assert len(result) == 1
+        assert result[0]["text"] == "keep"
+
+    def test_mixed_text_and_image_converted(self):
+        content = [
+            {"type": "text", "text": "caption"},
+            {"type": "image_url", "image_url": {"url": "https://example.com/img.jpg"}},
+        ]
+        result = _convert_content_for_responses(content)
+        assert len(result) == 2
+        assert result[0]["type"] == "input_text"
+        assert result[1]["type"] == "input_image"
 
     def test_unknown_provider_lowercased(self):
         assert _normalize_vision_provider("MyProvider") == "myprovider"
