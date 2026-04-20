@@ -342,3 +342,77 @@ class TestSessionSearch:
         assert result["count"] == 0
         assert result["results"] == []
         assert result["sessions_searched"] == 0
+
+
+class TestRecentSessionsMode:
+    """Tests for the empty-query (recent sessions) path via _list_recent_sessions."""
+
+    def _make_db(self, sessions):
+        """Return a mock DB whose list_sessions_rich returns the given sessions."""
+        from unittest.mock import MagicMock
+        mock_db = MagicMock()
+        mock_db.list_sessions_rich.return_value = sessions
+        mock_db.get_session.return_value = {"parent_session_id": None}
+        return mock_db
+
+    def test_empty_query_returns_recent_mode(self):
+        from tools.session_search_tool import session_search
+        mock_db = self._make_db([
+            {"id": "sid1", "source": "telegram", "started_at": 1709500000,
+             "last_active": 1709500100, "message_count": 5, "title": "hello",
+             "preview": "hi there", "parent_session_id": None},
+        ])
+        result = json.loads(session_search(query="", db=mock_db))
+        assert result["success"] is True
+        assert result["mode"] == "recent"
+        assert result["count"] == 1
+        assert result["results"][0]["session_id"] == "sid1"
+
+    def test_whitespace_query_returns_recent_mode(self):
+        from tools.session_search_tool import session_search
+        mock_db = self._make_db([
+            {"id": "sid1", "source": "cli", "started_at": 1709500000,
+             "last_active": 1709500000, "message_count": 3, "title": None,
+             "preview": "test", "parent_session_id": None},
+        ])
+        result = json.loads(session_search(query="   ", db=mock_db))
+        assert result["success"] is True
+        assert result["mode"] == "recent"
+
+    def test_recent_mode_excludes_current_session(self):
+        """The current session should not appear in recent sessions results."""
+        from tools.session_search_tool import session_search
+        current_sid = "20260420_090000_current"
+        other_sid = "20260420_080000_other"
+        mock_db = self._make_db([
+            {"id": current_sid, "source": "telegram", "started_at": 1709500100,
+             "last_active": 1709500100, "message_count": 2, "title": None,
+             "preview": "", "parent_session_id": None},
+            {"id": other_sid, "source": "telegram", "started_at": 1709500000,
+             "last_active": 1709500000, "message_count": 4, "title": "other",
+             "preview": "prev", "parent_session_id": None},
+        ])
+        result = json.loads(session_search(query="", db=mock_db, current_session_id=current_sid))
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        assert current_sid not in session_ids
+        assert other_sid in session_ids
+
+    def test_recent_mode_excludes_child_sessions(self):
+        """Sessions that are compression/delegation children should be skipped."""
+        from tools.session_search_tool import session_search
+        parent_sid = "20260420_080000_parent"
+        child_sid = "20260420_085000_child"
+        mock_db = self._make_db([
+            {"id": child_sid, "source": "telegram", "started_at": 1709500100,
+             "last_active": 1709500100, "message_count": 1, "title": None,
+             "preview": "", "parent_session_id": parent_sid},  # child — excluded
+            {"id": parent_sid, "source": "telegram", "started_at": 1709500000,
+             "last_active": 1709500000, "message_count": 5, "title": "root",
+             "preview": "content", "parent_session_id": None},
+        ])
+        result = json.loads(session_search(query="", db=mock_db))
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        assert child_sid not in session_ids
+        assert parent_sid in session_ids
