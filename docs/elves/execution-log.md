@@ -4,6 +4,31 @@
 
 ---
 
+## Scout 75 — Broader exploratory scan: anthropic_adapter.py pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- `agent/anthropic_adapter.py` had no test file despite containing many pure helpers
+- Added `tests/agent/test_anthropic_adapter_pure_helpers.py` with 70 tests covering:
+  - `_get_anthropic_max_output()`: known models, date-stamped variants, unknown→default, longest-prefix wins
+  - `_supports_adaptive_thinking()`: 4-6/4.6 detection, false for others
+  - `_is_oauth_token()`: sk-ant-api→False, sk-ant-oat→True, arbitrary→True
+  - `_is_third_party_anthropic_endpoint()`: None/empty→False, direct Anthropic→False, Azure/Bedrock→True
+  - `_requires_bearer_auth()`: MiniMax global/China→True, others→False, trailing slash handled
+  - `normalize_model_name()`: anthropic/ prefix strip (case-insensitive), dots→hyphens, preserve_dots
+  - `_sanitize_tool_id()`: valid unchanged, empty→"tool_0", spaces/dots/special→underscore
+  - `_convert_openai_image_part_to_anthropic()`: http URL, base64 data URI, missing URL→None
+  - `_convert_user_content_part_to_anthropic()`: text+cache_control, image_url delegation, base64 image, tool_result passthrough, non-dict→text, None→None
+  - `convert_tools_to_anthropic()`: empty/None, full conversion, missing fields use defaults
+- 8091/8091 pass (all green, pre-existing flake didn't trigger this run)
+
+**Files changed:**
+- `tests/agent/test_anthropic_adapter_pure_helpers.py`: new file, 70 tests
+
+---
+
 ## Scout 74 — Broader exploratory scan: hermes_cli/setup.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~15m

@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 74 complete. Scout 75 next.
+Reason: Open-ended mode active. Scout 75 complete. Scout 76 next.
 ```
 
 ## Current Phase
-SCOUT 74 COMPLETE — hermes_cli/setup.py pure helpers 40 tests; 8021/8021 pass. Scout 75 next.
+SCOUT 75 COMPLETE — anthropic_adapter.py pure helpers 70 tests; 8091/8091 pass. Scout 76 next.
 
 ## Next Exact Batch
-Scout 75: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 76: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -100,7 +100,8 @@ Scout 75: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 72** ✅ models.py pure helpers 46 tests; 7937/7937 pass
 - **Scout 73** ✅ hermes_cli/config.py pure helpers 44 tests; 7981/7981 pass (1 pre-existing xdist flake)
 - **Scout 74** ✅ hermes_cli/setup.py pure helpers 40 tests; 8021/8021 pass (pre-existing xdist flake)
-- **Scout 75** 🔄 Continue broader exploratory scan
+- **Scout 75** ✅ anthropic_adapter.py pure helpers 70 tests; 8091/8091 pass
+- **Scout 76** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
