@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 42 complete. Scout 43 next.
+Reason: Open-ended mode active. Scout 43 complete. Scout 44 next.
 ```
 
 ## Current Phase
-SCOUT 42 COMPLETE — Fix A/B tests verified (honcho_lifecycle + agent_cache), session_search inject-most-recent tested, 108 test artifact sessions benign in FTS5, all 10 agents running; 7426/7426 pass.
+SCOUT 43 COMPLETE — provider/routing/toolset audit clean; all Gemini agents have google-gemini custom_providers; all CodeX/Claude agents correct; platform toolset fallback confirmed; 7426/7426 pass.
 
 ## Next Exact Batch
-Scout 43: Explore if there are any remaining toolset, model routing, or provider config gaps for any agent; look for any late-session drift that could affect quality
+Scout 44: Look for any subtle issues in compress, memory flush, or honcho paths; check if any remaining tests can be hardened against HERMES_HOME leakage
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -68,7 +68,8 @@ Scout 43: Explore if there are any remaining toolset, model routing, or provider
 - **Scout 40** ✅ Broader hardening: all 11 state.dbs healthy (schema 6, 0 orphaned); hermes-cli toolset correct; module-level HERMES_HOME pattern reviewed (cron/memory patched in tests; acp_adapter already dynamic); no new code bugs
 - **Scout 41** ✅ Acceptance criteria audit: 5/7 criteria code-verified (no-AGENTS.md injection, recency-recall logic, toolsets+vault Grade A, Fix A+B in place); 2 require live user testing (Opus 4.7 continuity, model switching)
 - **Scout 42** ✅ Fix A/B regression tests verified (test_honcho_lifecycle, test_agent_cache); inject-most-recent logic tested; 108 test-artifact cron sessions benign in FTS5; all 10 agents confirmed running; 7426/7426 pass
-- **Scout 43** 🔄 Provider/routing gaps audit for remaining agents
+- **Scout 43** ✅ Provider/routing/toolset audit: all Gemini agents have google-gemini custom_providers; alex/malik have flash-lite aux configs; platform toolset fallback confirmed; custom_providers correct; 7426/7426 pass
+- **Scout 44** 🔄 Memory flush / honcho paths / remaining HERMES_HOME isolation checks
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

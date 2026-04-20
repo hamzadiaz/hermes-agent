@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 43 — Provider/routing/toolset config audit (2026-04-20T~08:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited all 10 agent configs for provider+model+toolset completeness:
+  - Gemini agents (adonch, musa, redwan, mark): `custom_providers: [google-gemini]` confirmed; all use `gemini-3.1-pro-preview` as primary; all have flash-lite auxiliary configs.
+  - OpenAI Codex agents (alex, malik): `provider: openai-codex`; auxiliary configs use Gemini flash-lite for session_search/compression/flush_memories (correct).
+  - Claude Code agents (buni, claude, donch): `provider: claude-code`; auxiliary configs use explicit Gemini flash-lite (correct).
+  - codex agent: Uses `codex` API key for auxiliary (AIzaSyB8kzbUUgV0nFjZJ5X-WTic0_Am57l0pNg); confirmed.
+- Platform toolset fallback: When `platform_toolsets` not set in config (9/10 agents), `_get_platform_tools()` uses `PLATFORMS[platform]["default_toolset"]` — typically `hermes-telegram` for Telegram, which maps to `_HERMES_CORE_TOOLS`. This includes session_search, memory, skills, etc.
+- Only `mark` has explicit `platform_toolsets` config; others correctly fall back to platform defaults.
+- Final health check: 11/11 gateways running, vault Grade A, state.db healthy (1068 sessions, 0 orphaned).
+
+**Files changed:**
+- None (verification only)
+
+**Tests:** 7426/7426 pass (unchanged)
+
+---
+
 ## Scout 42 — Fix A/B regression audit + FTS5 contamination check (2026-04-20T~08:00Z)
 
 **Duration:** ~20m
