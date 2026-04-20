@@ -4,6 +4,33 @@
 
 ---
 
+## Scout 56 — Final acceptance criteria audit (2026-04-20T~09:45Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Full code audit of all 4 code-verifiable acceptance criteria items:
+  1. **False tool advertising (fresh sessions)**: Scout 26 fix confirmed in place — `run_agent.py:2825-2829` uses `TERMINAL_CWD → HERMES_HOME → None`, never `os.getcwd()`. `load_soul_md()` reads only from `HERMES_HOME`. Regression test at `test_run_agent.py:3697` covers all paths. ✅
+  2. **Recency recall**: Injection logic at `session_search_tool.py:347-381` confirmed correct — most-recent session injected even when it doesn't match keyword query. Try-except guards prevent AttributeError (Scout 25 fix). ✅
+  3. **Tool list accuracy for claude-code**: No hardcoded tool lists in `claude_code_client.py`; `--tools ""` + empty MCP config correctly isolates tools; claude-code subprocess has no context file discovery. ✅
+  4. **Stale agent reuse (Fix A)**: `_agent_config_signature()` at `run.py:5383` includes `session_id or ""` in cache key hash. Cross-session agent reuse impossible. ✅
+
+- **Acceptance criteria status**:
+  - 3/7 criteria fully verified by code + tests (marked ✅ in survival guide)
+  - 2/7 require live Telegram testing by user (Claude/Opus 4.7 continuity, model switching)
+  - 1/7 is a user process requirement (use fresh sessions post-restart)
+  - 1/7 requires human review + merge (integration branch, Non-Negotiable #1)
+
+- No new code bugs found. Survival guide acceptance criteria updated with status.
+- 7440/7440 pass (no new test changes this scout).
+
+**Files changed:**
+- `docs/elves/survival-guide.md`: Updated acceptance criteria with verification status
+- `docs/elves/execution-log.md`: This entry
+
+---
+
 ## Scout 55 — Pre-existing xdist test contamination: root-cause found and fixed (2026-04-20T~09:00Z)
 
 **Duration:** ~45m

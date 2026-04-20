@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 55 complete. Scout 56 next.
+Reason: Open-ended mode active. Scout 56 complete. Scout 57 next.
 ```
 
 ## Current Phase
-SCOUT 55 COMPLETE — Pre-existing xdist contamination root-cause found and fixed: hermes_cli.runtime_provider lazy-import + monkeypatch ordering; 83/83 in test_auxiliary_client.py, 7440/7440 full suite pass.
+SCOUT 56 COMPLETE — Final acceptance criteria audit: 3/7 code-verified (tool advertising, recency recall, memory/skills/config), 2/7 require live user testing (Opus 4.7 continuity, model switching), 2/7 require human action (stale sessions/upstream merge). 7440/7440 pass.
 
 ## Next Exact Batch
-Scout 56: Review final acceptance criteria checklist — identify any remaining code-verifiable items or documentation gaps
+Scout 57: Broader exploratory scan — look for any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -81,7 +81,8 @@ Scout 56: Review final acceptance criteria checklist — identify any remaining 
 - **Scout 53** ✅ Compression system verified; all 10 agents gemini-3.1-flash-lite-preview; 7440/7440 pass
 - **Scout 54** ✅ Fix B correct; flush_memories dual-path verified; 30/30 auto-reset tests pass
 - **Scout 55** ✅ Pre-existing xdist contamination root-cause found and fixed; 83/83 test_auxiliary_client.py; 7440/7440 full suite
-- **Scout 56** 🔄 Final acceptance criteria review — remaining code-verifiable items
+- **Scout 56** ✅ Acceptance criteria audit: 3/7 code-verified; 2/7 need live test; 2/7 need human action; 7440/7440
+- **Scout 57** 🔄 Broader exploratory scan — remaining bugs, coverage gaps, quality improvements
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
@@ -115,10 +116,10 @@ Scout 56: Review final acceptance criteria checklist — identify any remaining 
 - Models page: https://optijara.ai/models
 
 ## Final Acceptance Criteria
-- [ ] Fresh sessions no longer falsely claim missing tools
-- [ ] Recency recall consistently prioritizes latest relevant issue
-- [ ] Claude/Opus 4.7 behaves correctly, not materially worse than GPT/Codex on continuity
-- [ ] Model switching via optijara.ai/models + Save + /new reliably takes effect
-- [ ] Memory/session_search/skills/Obsidian/cron awareness correctly surfaced
-- [ ] Old stale sessions explicitly discarded from verification
-- [ ] Latest-upstream integration plan executed safely (controlled branch)
+- [x] Fresh sessions no longer falsely claim missing tools — VERIFIED CODE (Scout 26/56: AGENTS.md injection fixed via HERMES_HOME fallback; regression test test_run_agent.py:3697)
+- [x] Recency recall consistently prioritizes latest relevant issue — VERIFIED CODE (Scout 28/48/56: most-recent session injection in session_search_tool.py:347-381; test coverage confirmed)
+- [ ] Claude/Opus 4.7 behaves correctly, not materially worse than GPT/Codex on continuity — REQUIRES LIVE TEST
+- [ ] Model switching via optijara.ai/models + Save + /new reliably takes effect — REQUIRES LIVE TEST
+- [x] Memory/session_search/skills/Obsidian/cron awareness correctly surfaced — VERIFIED CODE (Scout 29-35: all 10 agents have correct aux configs; skills hub 97 tests pass; vault Grade A)
+- [ ] Old stale sessions explicitly discarded from verification — USER ACTION (use fresh sessions only, post-restart)
+- [ ] Latest-upstream integration plan executed safely (controlled branch) — HUMAN MERGE (integration/upstream-merge-2026-04-19 ready, Non-Negotiable #1 prevents auto-merge)
