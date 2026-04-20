@@ -4,6 +4,27 @@
 
 ---
 
+## Scout 80 — Broader exploratory scan: status.py + cron.py pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `hermes_cli/status.py` and `hermes_cli/cron.py` had pure helpers with no tests
+- Added `tests/hermes_cli/test_status_helpers.py` with 23 tests covering:
+  - `redact_key()`: None/empty→"(not set)", <12 chars→"***", ≥12 chars → first4...last4
+  - `_format_iso_timestamp()`: None/empty/whitespace/non-string→"(unknown)", Z/offset parsed, invalid→original
+  - `_configured_model_label()`: dict.default, dict.name, string, whitespace→"(not set)", None/empty
+- Added `tests/hermes_cli/test_cron_helpers.py` with 11 tests covering:
+  - `_normalize_skills()`: None/None→None, single_skill, skills iterable, empty filtered, whitespace stripped, dedup, order preserved, None items coerced
+- 8254/8254 pass
+
+**Files changed:**
+- `tests/hermes_cli/test_status_helpers.py`: new file, 23 tests
+- `tests/hermes_cli/test_cron_helpers.py`: new file, 11 tests
+
+---
+
 ## Scout 79 — Broader exploratory scan: nous_subscription.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~10m
