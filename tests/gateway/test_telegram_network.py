@@ -642,3 +642,28 @@ class TestDiscoverFallbackIps:
 
         ips = await tnet.discover_fallback_ips()
         assert ips == ["149.154.167.220"]
+
+
+# ── _is_retryable_connect_error ───────────────────────────────────────────────
+
+class TestIsRetryableConnectError:
+    def test_connect_timeout_is_retryable(self):
+        assert tnet._is_retryable_connect_error(httpx.ConnectTimeout("timed out")) is True
+
+    def test_connect_error_is_retryable(self):
+        assert tnet._is_retryable_connect_error(httpx.ConnectError("refused")) is True
+
+    def test_read_timeout_not_retryable(self):
+        assert tnet._is_retryable_connect_error(httpx.ReadTimeout("read timed out")) is False
+
+    def test_value_error_not_retryable(self):
+        assert tnet._is_retryable_connect_error(ValueError("bad value")) is False
+
+    def test_generic_exception_not_retryable(self):
+        assert tnet._is_retryable_connect_error(Exception("generic")) is False
+
+    def test_http_status_error_not_retryable(self):
+        req = httpx.Request("GET", "https://api.telegram.org/")
+        resp = httpx.Response(500, request=req)
+        exc = httpx.HTTPStatusError("500", request=req, response=resp)
+        assert tnet._is_retryable_connect_error(exc) is False
