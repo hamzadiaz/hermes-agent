@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 44 complete. Scout 45 next.
+Reason: Open-ended mode active. Scout 45 complete. Scout 46 next.
 ```
 
 ## Current Phase
-SCOUT 44 COMPLETE — flush_memories path correct; was_auto_reset cleared after processing; honcho config empty (disabled) on all agents; Fix B edge cases verified; 7426/7426 pass.
+SCOUT 45 COMPLETE — integration branch status documented; all 5 key fixes have regression tests; merge readiness documented in L6; 7426/7426 pass.
 
 ## Next Exact Batch
-Scout 45: Look at integration branch status, document merge readiness; check if any test coverage gaps remain for the core fixes
+Scout 46: Final system stability check; look for any remaining issues in error logs; check if there are any improvements to make to the toolset tests
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -70,7 +70,8 @@ Scout 45: Look at integration branch status, document merge readiness; check if 
 - **Scout 42** ✅ Fix A/B regression tests verified (test_honcho_lifecycle, test_agent_cache); inject-most-recent logic tested; 108 test-artifact cron sessions benign in FTS5; all 10 agents confirmed running; 7426/7426 pass
 - **Scout 43** ✅ Provider/routing/toolset audit: all Gemini agents have google-gemini custom_providers; alex/malik have flash-lite aux configs; platform toolset fallback confirmed; custom_providers correct; 7426/7426 pass
 - **Scout 44** ✅ flush_memories auxiliary path correct; was_auto_reset=False cleared after processing (line 2258); honcho empty/disabled on all agents; no additional code changes needed; 7426/7426 pass
-- **Scout 45** 🔄 Integration branch readiness + final test coverage gap analysis
+- **Scout 45** ✅ Integration branch: 50 commits behind main; L6 updated with accurate line numbers + all 5 fixes; all regression tests confirmed (Scout 26→test_run_agent.py:3739, Scout 39→test_hermes_state.py:1301, Fix A/B→test_agent_cache+test_honcho); 7426/7426 pass
+- **Scout 46** 🔄 Final system stability + error log review
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

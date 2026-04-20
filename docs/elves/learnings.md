@@ -26,10 +26,16 @@ Auto-reset (idle/daily) was not evicting cached AIAgent instances or shutting do
 ## L6: Upstream merge is NOT safe to auto-execute
 - Local gateway/run.py = 6536 lines; upstream = 10891 lines (completely restructured, 1810 commits ahead)
 - Our two critical fixes are NOT in upstream — blind merge would destroy them:
-  - Fix A: `session_id or ""` in `_agent_config_signature` blob (local line 5379)
-  - Fix B: `_shutdown_gateway_honcho` + `_evict_cached_agent` in `was_auto_reset` path (local lines 2199-2200)
+  - **Fix A**: `session_id or ""` in `_agent_config_signature` blob (local line 5383 as of 2026-04-20)
+    - In `_agent_config_signature` method, the `session_id or ""` ensures different sessions get different cache keys
+  - **Fix B**: `_shutdown_gateway_honcho` + `_evict_cached_agent` in `was_auto_reset` path (local lines 2198-2204 as of 2026-04-20)
+    - In `_handle_message_with_agent`, the `if getattr(session_entry, 'was_auto_reset', False)` block must call both methods before running the agent
+  - **Scout 26 fix**: `run_agent.py:2825` — context_cwd uses HERMES_HOME not os.getcwd()
+  - **Scout 33 fix**: `agent/auxiliary_client.py` — external_process provider logs at DEBUG not WARNING
+  - **Scout 39 fix**: `hermes_state.py:140` — `SessionDB.__init__` calls `get_hermes_home()` dynamically
 - Integration branch `integration/upstream-merge-2026-04-19` created for safe merge work
 - Correct approach: apply upstream changes on integration branch, manually re-apply fixes, re-verify
+- The integration branch is now 50 commits behind main (all Scout docs + code fixes since April 19)
 
 ## L10: Test suite has many xdist (parallel) isolation failures that pass sequentially (2026-04-19)
 

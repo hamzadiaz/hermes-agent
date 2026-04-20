@@ -4,6 +4,32 @@
 
 ---
 
+## Scout 45 — Integration branch readiness + test coverage gap analysis (2026-04-20T~09:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Integration branch `integration/upstream-merge-2026-04-19` is now 50 commits behind main (all Scout docs + code fixes since April 19). Upstream gateway/run.py is 10891 lines vs our 6536 — human merge required.
+- Updated L6 with accurate current line numbers for all 5 key fixes:
+  - Fix A: `gateway/run.py:5383` — `session_id or ""` in cache signature
+  - Fix B: `gateway/run.py:2198-2204` — evict agent + shutdown honcho on auto-reset
+  - Scout 26: `run_agent.py:2825` — context_cwd uses HERMES_HOME not os.getcwd()
+  - Scout 33: `agent/auxiliary_client.py` — external_process logs at DEBUG
+  - Scout 39: `hermes_state.py:140` — SessionDB dynamic HERMES_HOME resolution
+- All 5 fixes have regression tests confirmed:
+  - Fix A: `tests/gateway/test_agent_cache.py::test_session_id_change_different_signature`
+  - Fix B: `tests/gateway/test_honcho_lifecycle.py::test_auto_reset_cleans_gateway_honcho_and_agent_cache_before_run`
+  - Scout 26: `tests/test_run_agent.py:3739` — HERMES_HOME context_cwd fallback test
+  - Scout 39: `tests/test_hermes_state.py:1301` — `test_sessiondb_no_args_uses_current_hermes_home`
+  - Scout 33: No dedicated test (logging behavior; covered by existing auxiliary client tests)
+- No code changes needed.
+
+**Files changed:**
+- `docs/elves/learnings.md` — L6 updated with accurate line numbers and all 5 fixes
+
+---
+
 ## Scout 44 — flush_memories / honcho / Fix B edge cases (2026-04-20T~09:00Z)
 
 **Duration:** ~15m
