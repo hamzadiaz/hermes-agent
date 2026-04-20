@@ -4,6 +4,8 @@ Covers:
 - _platform_config_key(): map Platform enum to config.yaml key
 - _resolve_gateway_model(): extract model string from config dict
 - _apply_event_runtime_overrides(): apply per-message runtime overrides
+- _normalize_gateway_text(): coerce structured content to plain text
+- _normalize_whatsapp_identifier(): strip WhatsApp JID/LID syntax
 """
 
 from types import SimpleNamespace
@@ -13,6 +15,8 @@ import pytest
 from gateway.config import Platform
 from gateway.run import (
     _apply_event_runtime_overrides,
+    _normalize_gateway_text,
+    _normalize_whatsapp_identifier,
     _platform_config_key,
     _resolve_gateway_model,
 )
@@ -150,3 +154,86 @@ class TestApplyEventRuntimeOverrides:
         model, runtime = _apply_event_runtime_overrides(event, "fallback-model", {})
         assert model == "fallback-model"
         assert runtime == {}
+
+
+# ── _normalize_gateway_text ───────────────────────────────────────────────────
+
+class TestNormalizeGatewayText:
+    def test_none_returns_empty(self):
+        assert _normalize_gateway_text(None) == ""
+
+    def test_string_returned_as_is(self):
+        assert _normalize_gateway_text("hello world") == "hello world"
+
+    def test_dict_with_text_key(self):
+        assert _normalize_gateway_text({"text": "content"}) == "content"
+
+    def test_dict_with_content_key_fallback(self):
+        assert _normalize_gateway_text({"content": "body"}) == "body"
+
+    def test_dict_text_preferred_over_content(self):
+        assert _normalize_gateway_text({"text": "primary", "content": "secondary"}) == "primary"
+
+    def test_dict_unknown_keys_json_serialized(self):
+        result = _normalize_gateway_text({"other": "x"})
+        assert "other" in result
+        assert "x" in result
+
+    def test_list_of_strings_joined_by_newline(self):
+        assert _normalize_gateway_text(["a", "b", "c"]) == "a\nb\nc"
+
+    def test_list_of_text_dicts(self):
+        items = [{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]
+        assert _normalize_gateway_text(items) == "hello\nworld"
+
+    def test_list_empty_text_items_filtered(self):
+        items = [{"type": "text", "text": ""}, {"type": "text", "text": "keep"}]
+        assert _normalize_gateway_text(items) == "keep"
+
+    def test_list_non_text_dict_with_text_key(self):
+        # dicts with "text" key but different type still included
+        items = [{"type": "image", "text": "caption"}]
+        assert _normalize_gateway_text(items) == "caption"
+
+    def test_integer_stringified(self):
+        assert _normalize_gateway_text(42) == "42"
+
+    def test_empty_string_returned_as_is(self):
+        assert _normalize_gateway_text("") == ""
+
+    def test_list_of_mixed_str_and_dict(self):
+        items = ["intro", {"type": "text", "text": "body"}]
+        result = _normalize_gateway_text(items)
+        assert "intro" in result
+        assert "body" in result
+
+
+# ── _normalize_whatsapp_identifier ────────────────────────────────────────────
+
+class TestNormalizeWhatsappIdentifier:
+    def test_jid_with_at_stripped(self):
+        assert _normalize_whatsapp_identifier("1234567890@s.whatsapp.net") == "1234567890"
+
+    def test_leading_plus_stripped(self):
+        assert _normalize_whatsapp_identifier("+1234567890") == "1234567890"
+
+    def test_plus_and_jid_stripped(self):
+        assert _normalize_whatsapp_identifier("+1234567890@s.whatsapp.net") == "1234567890"
+
+    def test_colon_suffix_stripped(self):
+        assert _normalize_whatsapp_identifier("1234567890:5@s.whatsapp.net") == "1234567890"
+
+    def test_lid_syntax(self):
+        assert _normalize_whatsapp_identifier("1234567890:5@lid") == "1234567890"
+
+    def test_plain_number_unchanged(self):
+        assert _normalize_whatsapp_identifier("1234567890") == "1234567890"
+
+    def test_empty_string_returns_empty(self):
+        assert _normalize_whatsapp_identifier("") == ""
+
+    def test_none_returns_empty(self):
+        assert _normalize_whatsapp_identifier(None) == ""
+
+    def test_whitespace_stripped(self):
+        assert _normalize_whatsapp_identifier("  1234  ") == "1234"

@@ -12,22 +12,34 @@ Covers:
 - _to_post_payload(): extract title+content dict from a candidate dict
 - _resolve_locale_payload(): resolve locale-keyed post payload
 - _resolve_post_payload(): top-level post payload resolution with nested unwrapping
+- _normalize_feishu_text(): normalize whitespace and remove mention placeholders
+- _unique_lines(): deduplicate non-empty lines preserving order
+- _attachment_placeholder(): format attachment reference string
+- _find_header_title(): extract title from Feishu card header dict
+- _first_non_empty_text(): return first non-empty normalized text from varargs
+- _walk_nodes(): depth-first dict/list node generator
 """
 
 import pytest
 
 from gateway.platforms.feishu import (
+    _attachment_placeholder,
     _escape_markdown_text,
-    _to_boolean,
+    _find_header_title,
+    _first_non_empty_text,
     _is_style_enabled,
-    _wrap_inline_code,
-    _sanitize_fence_language,
-    _render_text_element,
+    _normalize_feishu_text,
     _render_code_block_element,
-    _strip_markdown_to_plain_text,
-    _to_post_payload,
+    _render_text_element,
     _resolve_locale_payload,
     _resolve_post_payload,
+    _sanitize_fence_language,
+    _strip_markdown_to_plain_text,
+    _to_boolean,
+    _to_post_payload,
+    _unique_lines,
+    _walk_nodes,
+    _wrap_inline_code,
 )
 
 
@@ -369,3 +381,173 @@ class TestResolvePostPayload:
 
     def test_empty_dict_returns_empty(self):
         assert _resolve_post_payload({}) == {}
+
+
+# ── _normalize_feishu_text ────────────────────────────────────────────────────
+
+class TestNormalizeFeishuText:
+    def test_plain_text_unchanged(self):
+        assert _normalize_feishu_text("hello world") == "hello world"
+
+    def test_empty_string_returns_empty(self):
+        assert _normalize_feishu_text("") == ""
+
+    def test_none_returns_empty(self):
+        assert _normalize_feishu_text(None) == ""
+
+    def test_leading_trailing_whitespace_stripped(self):
+        assert _normalize_feishu_text("  hello  ") == "hello"
+
+    def test_mention_placeholder_removed(self):
+        result = _normalize_feishu_text("hello @_user_123 world")
+        assert "@_user_" not in result
+        assert "hello" in result and "world" in result
+
+    def test_crlf_normalized_to_lf(self):
+        result = _normalize_feishu_text("a\r\nb")
+        assert "\r\n" not in result
+        assert "a\nb" == result
+
+    def test_cr_normalized_to_lf(self):
+        result = _normalize_feishu_text("a\rb")
+        assert "\r" not in result
+
+    def test_multiline_preserved(self):
+        result = _normalize_feishu_text("line1\nline2")
+        assert result == "line1\nline2"
+
+    def test_multiple_spaces_collapsed(self):
+        result = _normalize_feishu_text("a  b   c")
+        assert result == "a b c"
+
+
+# ── _unique_lines ──────────────────────────────────────────────────────────────
+
+class TestUniqueLines:
+    def test_empty_list_returns_empty(self):
+        assert _unique_lines([]) == []
+
+    def test_duplicates_removed(self):
+        assert _unique_lines(["a", "b", "a"]) == ["a", "b"]
+
+    def test_order_preserved(self):
+        assert _unique_lines(["c", "a", "b", "a"]) == ["c", "a", "b"]
+
+    def test_empty_strings_excluded(self):
+        assert _unique_lines(["a", "", "b", ""]) == ["a", "b"]
+
+    def test_all_duplicates_returns_single(self):
+        assert _unique_lines(["x", "x", "x"]) == ["x"]
+
+    def test_no_duplicates_unchanged(self):
+        assert _unique_lines(["a", "b", "c"]) == ["a", "b", "c"]
+
+
+# ── _attachment_placeholder ───────────────────────────────────────────────────
+
+class TestAttachmentPlaceholder:
+    def test_named_file_returns_formatted_string(self):
+        result = _attachment_placeholder("report.pdf")
+        assert result == "[Attachment: report.pdf]"
+
+    def test_empty_name_returns_fallback(self):
+        result = _attachment_placeholder("")
+        assert result == "[Attachment]"
+
+    def test_whitespace_only_name_returns_fallback(self):
+        result = _attachment_placeholder("   ")
+        assert result == "[Attachment]"
+
+    def test_file_name_with_spaces(self):
+        result = _attachment_placeholder("my report.docx")
+        assert "my report.docx" in result
+
+
+# ── _find_header_title ────────────────────────────────────────────────────────
+
+class TestFindHeaderTitle:
+    def test_non_dict_returns_empty(self):
+        assert _find_header_title(None) == ""
+        assert _find_header_title("string") == ""
+
+    def test_missing_header_returns_empty(self):
+        assert _find_header_title({}) == ""
+
+    def test_non_dict_header_returns_empty(self):
+        assert _find_header_title({"header": "not a dict"}) == ""
+
+    def test_title_dict_with_content_key(self):
+        payload = {"header": {"title": {"content": "My Title"}}}
+        assert _find_header_title(payload) == "My Title"
+
+    def test_title_dict_with_text_key(self):
+        payload = {"header": {"title": {"text": "Text Title"}}}
+        assert _find_header_title(payload) == "Text Title"
+
+    def test_title_string_directly(self):
+        payload = {"header": {"title": "Direct Title"}}
+        assert _find_header_title(payload) == "Direct Title"
+
+    def test_title_none_returns_empty(self):
+        payload = {"header": {"title": None}}
+        assert _find_header_title(payload) == ""
+
+
+# ── _first_non_empty_text ─────────────────────────────────────────────────────
+
+class TestFirstNonEmptyText:
+    def test_first_non_empty_string_returned(self):
+        assert _first_non_empty_text("", None, "found") == "found"
+
+    def test_all_empty_returns_empty(self):
+        assert _first_non_empty_text("", None, "") == ""
+
+    def test_no_args_returns_empty(self):
+        assert _first_non_empty_text() == ""
+
+    def test_first_string_returned(self):
+        assert _first_non_empty_text("first", "second") == "first"
+
+    def test_dict_values_skipped(self):
+        # dicts are skipped
+        assert _first_non_empty_text({}, "found") == "found"
+
+    def test_list_values_skipped(self):
+        # lists are skipped
+        assert _first_non_empty_text([], "found") == "found"
+
+    def test_whitespace_only_string_skipped(self):
+        assert _first_non_empty_text("   ", "real") == "real"
+
+
+# ── _walk_nodes ───────────────────────────────────────────────────────────────
+
+class TestWalkNodes:
+    def test_empty_dict_yields_itself(self):
+        result = list(_walk_nodes({}))
+        assert result == [{}]
+
+    def test_flat_dict_yields_itself(self):
+        result = list(_walk_nodes({"a": 1}))
+        assert result == [{"a": 1}]
+
+    def test_nested_dict_yields_all_dicts(self):
+        result = list(_walk_nodes({"a": {"b": 1}}))
+        assert {"a": {"b": 1}} in result
+        assert {"b": 1} in result
+
+    def test_list_of_dicts_yields_all(self):
+        result = list(_walk_nodes([{"x": 1}, {"y": 2}]))
+        assert {"x": 1} in result
+        assert {"y": 2} in result
+
+    def test_scalar_yields_nothing(self):
+        assert list(_walk_nodes(42)) == []
+        assert list(_walk_nodes("string")) == []
+        assert list(_walk_nodes(None)) == []
+
+    def test_nested_list_in_dict_traversed(self):
+        payload = {"items": [{"id": 1}, {"id": 2}]}
+        result = list(_walk_nodes(payload))
+        ids = [n.get("id") for n in result if isinstance(n, dict) and "id" in n]
+        assert 1 in ids and 2 in ids
