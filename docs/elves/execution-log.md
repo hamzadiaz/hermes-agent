@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 26 — Repo AGENTS.md poisoning production sessions (2026-04-20T05:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Investigated production session `20260420_011907_ff163f66` (01:19 AM) where claude agent replied: "The system prompt describes a full Hermes tool suite (terminal, read_file, write_file, patch, etc.) but the tools actually wired in are only the Playwright MCP browser tools"
+- **Root cause**: All 11 gateway LaunchAgents use `WorkingDirectory=/Users/hamzadiaz/.hermes/hermes-agent`. `TERMINAL_CWD` env var is not set. In `run_agent.py`, when `TERMINAL_CWD` is unset, `build_context_files_prompt(cwd=None)` falls back to `os.getcwd()` = the hermes-agent repo dir. This loads the developer-facing `AGENTS.md` (which describes `terminal_tool.py`, `file_tools.py` etc.) into EVERY production session's system prompt.
+- Claude (claude_code_client path) reads this AGENTS.md and interprets the codebase file list as a description of its own available tools — leading to false claims about having "terminal, read_file, write_file" that don't exist in that context.
+- **Fix**: Changed the fallback order in `run_agent.py` from `os.getcwd()` to `HERMES_HOME`. HERMES_HOME (`~/.hermes` or `~/.hermes-agents/<name>/`) has no AGENTS.md, so no dev docs get injected. SOUL.md from HERMES_HOME still loads via `load_soul_md()` separately.
+- Full test suite: **7422/7422 pass** ✅
+
+**Files changed:**
+- `run_agent.py` — `_context_cwd` fallback: TERMINAL_CWD → HERMES_HOME → None
+
+**Note:** Gateway restart required for live sessions to pick up this change. New sessions after restart will have clean system prompts.
+
+---
+
 ## Scout 25 — session_search ERROR log noise fix (2026-04-20T05:00Z)
 
 **Duration:** ~20m

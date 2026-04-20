@@ -18,16 +18,16 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 25 complete. Scout 26 next.
+Reason: Open-ended mode active. Scout 26 complete. Scout 27 next.
 ```
 
 ## Current Phase
-SCOUT 25 COMPLETE — `'object' object has no attribute 'list_sessions_rich'` ERROR log noise traced to test mock misuse; fixed in test_session_search.py. 7422/7422 pass.
+SCOUT 26 COMPLETE — Repo AGENTS.md was being loaded into ALL production sessions, falsely advertising "terminal, read_file, write_file" tools that aren't available in claude_code_client path. Fixed in run_agent.py: HERMES_HOME fallback prevents dev AGENTS.md from polluting system prompts. 7422/7422 pass.
 
 ## Next Exact Batch
-Scout 26: Possible actions:
-- Audit session_search empty content issue (production quality — Gemini returning empty summaries)
-- Check remaining acceptance criteria
+Scout 27: Possible actions:
+- Audit remaining acceptance criteria
+- Check for any other production issues
 - Look for other stability improvements
 
 ## Batch Plan
@@ -54,6 +54,7 @@ Scout 26: Possible actions:
 - **Scout 23** ✅ Telegram reconnect audit (robust); flaky approval E2E test fixed (tirith cold-start + env-var race + missing signal in _clear_approval_state); 7422/7422 tests pass
 - **Scout 24** ✅ Gateway architecture audited: 1 main + 10 agent gateways; gemini-3.1-flash 404s are historical; all processes healthy
 - **Scout 25** ✅ `'object' object no attr list_sessions_rich` ERROR noise fixed: test mock misuse (object() → None); 7422/7422 pass
+- **Scout 26** ✅ Repo AGENTS.md poisoning system prompts: run_agent.py now falls back to HERMES_HOME not os.getcwd(); prevents false tool advertising in claude_code_client sessions
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
