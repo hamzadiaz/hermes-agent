@@ -294,4 +294,4 @@ import hermes_cli.runtime_provider  # noqa: F401 — ensures module is loaded be
 2. `monkeypatch.setattr("module_B.some_func", lambda: ...)` (patches an import of the same func in B)
 where `module_B` may not be imported yet. Fix: ensure `module_B` is imported at test file top level.
 
-**Fixed 2026-04-20 (Scout 55)**.
+**Fixed 2026-04-20 (Scout 55)**. Extended 2026-04-20 (Scout 58): same fix applied to `tests/acp/test_session.py` and `tests/acp/test_server.py`, which had the same pattern (`hermes_cli.config.load_config` patched before `hermes_cli.runtime_provider.*`; `hermes_cli.runtime_provider` lazily imported via `acp_adapter.session`).

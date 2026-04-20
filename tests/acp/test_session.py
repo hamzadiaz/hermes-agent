@@ -7,6 +7,14 @@ from unittest.mock import MagicMock, patch
 
 from acp_adapter.session import SessionManager, SessionState
 from hermes_state import SessionDB
+# Pre-import hermes_cli.runtime_provider before any test patches hermes_cli.config.load_config.
+# test_restore_preserves_persisted_provider_snapshot patches hermes_cli.config.load_config first,
+# then hermes_cli.runtime_provider.resolve_runtime_provider. The second setattr triggers the first
+# import of hermes_cli.runtime_provider (lazy import in acp_adapter.session). At that point
+# hermes_cli.config.load_config is already the lambda, so runtime_provider.load_config gets bound
+# to the lambda. Monkeypatch saves the lambda as "original" and restores it after the test, leaving
+# runtime_provider.load_config stale in subsequent tests in the same xdist worker.
+import hermes_cli.runtime_provider  # noqa: F401 — side-effect import for test isolation
 
 
 def _mock_agent():

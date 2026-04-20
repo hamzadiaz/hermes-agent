@@ -28,6 +28,9 @@ from acp.schema import (
 from acp_adapter.server import HermesACPAgent, HERMES_VERSION
 from acp_adapter.session import SessionManager
 from hermes_state import SessionDB
+# Pre-import hermes_cli.runtime_provider before any test patches hermes_cli.config.load_config.
+# See tests/acp/test_session.py for the detailed explanation of the xdist contamination risk.
+import hermes_cli.runtime_provider  # noqa: F401 — side-effect import for test isolation
 
 
 @pytest.fixture()

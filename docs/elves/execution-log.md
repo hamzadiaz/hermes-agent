@@ -4,6 +4,30 @@
 
 ---
 
+## Scout 58 — Broader exploratory scan: xdist fix extended + empty-choices guard (2026-04-20T~10:30Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Extended Scout 55's xdist pre-import fix to two more test files that had the same pattern:
+  - `tests/acp/test_session.py`: patches `hermes_cli.config.load_config` then `hermes_cli.runtime_provider.resolve_runtime_provider`; `hermes_cli.runtime_provider` lazily imported via `acp_adapter.session`
+  - `tests/acp/test_server.py`: same pattern
+  - Added `import hermes_cli.runtime_provider  # noqa: F401` with explanatory comment to both files
+- Fixed `extract_content_or_reasoning()` in `agent/auxiliary_client.py` (line 1843): added `if not response.choices: return ""` guard before `response.choices[0]` access to prevent IndexError on empty choices array from API
+- Added `test_empty_choices_returns_empty` to `tests/tools/test_llm_content_none_guard.py::TestExtractContentOrReasoning`
+- Updated L28 in learnings.md to note extension to acp test files
+- 7444/7444 pass (up from 7443 after empty-choices test added)
+
+**Files changed:**
+- `tests/acp/test_session.py`: pre-import guard added
+- `tests/acp/test_server.py`: pre-import guard added
+- `agent/auxiliary_client.py`: empty choices guard in extract_content_or_reasoning
+- `tests/tools/test_llm_content_none_guard.py`: +1 test
+- `docs/elves/learnings.md`: L28 updated
+
+---
+
 ## Scout 57 — Broader exploratory scan: recency injection edge-case tests (2026-04-20T~10:00Z)
 
 **Duration:** ~20m
