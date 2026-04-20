@@ -18,17 +18,18 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 22 complete. Scout 23 next (deeper code quality or exploratory).
+Reason: Open-ended mode active. Scout 23 complete. Scout 24 next (further code quality or exploratory).
 ```
 
 ## Current Phase
-SCOUT 22 COMPLETE — Full dashboard audit done. All pages healthy. System fully operational.
+SCOUT 23 COMPLETE — Telegram reconnection confirmed robust. Flaky approval test fixed. 7422 tests passing.
 
 ## Next Exact Batch
-Scout 23: Possible actions:
-- Investigate the fleet-health-monitor last-run timestamp (shows 4/17 — confirm it's actually running)
-- Look at whether the gateway handles session resumption correctly after Telegram reconnects
-- Review any remaining acceptance criteria gaps
+Scout 24: Possible actions:
+- Look for other flaky tests in the full suite
+- Audit the live-app preview system for edge cases
+- Review gateway session resume / SOUL.md loading further
+- Check remaining acceptance criteria
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -51,6 +52,7 @@ Scout 23: Possible actions:
 - **Scout 20** ✅ Gateway audit: no new None-arg patterns; UI: Open button dims when stopped; 7404/7404 tests pass
 - **Scout 21** ✅ Unit tests added: 16 for MCP isolation fix + 2 for None-args dispatch; 7421/7421 total
 - **Scout 22** ✅ Full dashboard audit: 11/11 agents, vault A, crons healthy, all models correct, Ralph 16 reviewers
+- **Scout 23** ✅ Telegram reconnect audit (robust); flaky approval E2E test fixed (tirith cold-start + env-var race + missing signal in _clear_approval_state); 7422/7422 tests pass
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

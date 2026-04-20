@@ -4,6 +4,36 @@
 
 ---
 
+## Scout 23 — Telegram Reconnect Audit + Flaky Test Fix (2026-04-20T03:30Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Telegram reconnection audit: `_polling_network_error_count` resets at line 252 on successful reconnect ✅
+- `drop_pending_updates=False` preserves messages during polling gap ✅
+- Send path (`_bot.send_message`) is independent of polling — replies survive disconnection ✅
+- Stale background threads unblocked via `asyncio.ensure_future` when `start_polling` fails ✅
+- Reconnection is robust; no code changes needed
+- Fleet-health-monitor confirmed running (437 runs, `ok: true` updated 02:17 AM) ✅
+- Discovered flaky test: `TestBlockingApprovalE2E::test_blocking_approval_approve_once` — 30-50% failure rate under xdist parallelism
+- Root cause 1: tirith binary cold-start (3-15s) exceeded 2.5s poll window
+- Root cause 2: `os.environ` race between concurrent threads (stale thread finally block clears env vars set by new test's thread)
+- Root cause 3: `_clear_approval_state()` didn't signal pending `_ApprovalEntry` events → stale threads blocked for up to 5s between tests
+- Fixes applied:
+  1. Added `set_thread_approval_context`/`clear_thread_approval_context` to `tools/approval.py` (threading.local, no os.environ race)
+  2. E2E tests use thread-local context instead of os.environ
+  3. `_clear_approval_state` now signals all pending events before clearing queues
+  4. Mocked `tirith_security.check_command_security` in E2E test classes (testing notification mechanism, not tirith)
+  5. Increased polling from 50→200 iterations for defense-in-depth
+- Added `*.bak` to `.gitignore` (gateway/run.py.bak-20260407-mark was untracked but unignored)
+- Tests: 7422/7422 pass; 30 consecutive runs of approval file = 0 failures (was 30-50% failure rate)
+- Committed: `4ad77089` and pushed to fork
+
+**Result:** Telegram reconnection confirmed robust. Flaky approval test eliminated. 7422 tests passing.
+
+---
+
 ## Scout 22 — Full Dashboard Audit + System Health Check (2026-04-20T02:45Z)
 
 **Duration:** ~15m
