@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 32 complete. Scout 33 next.
+Reason: Open-ended mode active. Scout 33 complete. Scout 34 next.
 ```
 
 ## Current Phase
-SCOUT 32 COMPLETE — flush_memories Gemini config added to all agents + main hermes. 7425/7425 tests pass.
+SCOUT 33 COMPLETE — external_process WARNING → DEBUG; no more false noise. 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 33: Investigate unhandled auth_type warning + broader systemic audit
+Scout 34: Broader systemic audit — check remaining error patterns, skills_hub config, Obsidian vault health
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -58,7 +58,8 @@ Scout 33: Investigate unhandled auth_type warning + broader systemic audit
 - **Scout 30** ✅ Fleet monitor kick-started; session_search config added to all 10 agents; 7425/7425 pass
 - **Scout 31** ✅ Toolset audit clean; compression config added to all 9 remaining agents; 7425/7425 pass
 - **Scout 32** ✅ flush_memories Gemini config added to all agents + main hermes; 7425/7425 pass
-- **Scout 33** 🔄 unhandled auth_type warning investigation + broader systemic audit
+- **Scout 33** ✅ external_process WARNING downgraded to DEBUG in resolve_provider_client; 7425/7425 pass
+- **Scout 34** 🔄 Broader systemic audit: skills_hub config, Obsidian vault, remaining patterns
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

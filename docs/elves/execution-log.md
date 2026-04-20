@@ -4,6 +4,24 @@
 
 ---
 
+## Scout 33 — Fix external_process WARNING noise in auxiliary_client (2026-04-20T09:50Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Traced `unhandled auth_type external_process for claude-code` WARNING to `resolve_provider_client` in `auxiliary_client.py`
+- Root cause: `run_agent.py` line 904 calls `resolve_provider_client(self.provider, ...)` when agent is re-initialized without explicit credentials. For `claude-code` provider, `pconfig.auth_type = "external_process"` falls through to the generic warning handler.
+- This is expected behavior: external process providers can't be auxiliary API clients.
+- Fix: Added explicit `elif pconfig.auth_type == "external_process":` branch before the generic warning, logging at DEBUG instead of WARNING.
+- This eliminates false WARNING noise for expected conditions (claude-code, litert-lm, copilot-acp)
+- Test suite: **7425/7425 pass** ✅
+
+**Files changed:**
+- `agent/auxiliary_client.py` — added explicit external_process handler (DEBUG vs WARNING)
+
+---
+
 ## Scout 32 — flush_memories config for all agents + main hermes (2026-04-20T09:20Z)
 
 **Duration:** ~20m

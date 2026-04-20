@@ -1148,6 +1148,14 @@ def resolve_provider_client(
                        "directly supported, try 'auto'", provider)
         return None, None
 
+    elif pconfig.auth_type == "external_process":
+        # External process providers (claude-code, litert-lm, copilot-acp) cannot
+        # serve as API-key auxiliary clients — they require a running subprocess.
+        # This is expected; log at DEBUG to avoid noise.
+        logger.debug("resolve_provider_client: skipping external_process provider %s "
+                     "(not usable as auxiliary client)", provider)
+        return None, None
+
     logger.warning("resolve_provider_client: unhandled auth_type %s for %s",
                    pconfig.auth_type, provider)
     return None, None
