@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 76 — Broader exploratory scan: usage_pricing.py helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `agent/usage_pricing.py` had `_to_decimal`, `_to_int`, `resolve_billing_route`, and `CanonicalUsage` derived properties without any tests
+- Added `tests/agent/test_usage_pricing_helpers.py` with 36 tests covering:
+  - `_to_decimal()`: None→None, int/float/str coercion, invalid/empty→None, scientific notation
+  - `_to_int()`: None→0, float truncation, string int, invalid/empty→0, bool passthrough
+  - `resolve_billing_route()`: openrouter (name+URL), anthropic, openai, openai-codex, custom, localhost, model slash-inferred provider, unknown passthrough, base_url preserved
+  - `CanonicalUsage.prompt_tokens`, `total_tokens`: cache buckets included, all-zero default
+- 8127/8127 pass
+
+**Files changed:**
+- `tests/agent/test_usage_pricing_helpers.py`: new file, 36 tests
+
+---
+
 ## Scout 75 — Broader exploratory scan: anthropic_adapter.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~15m
