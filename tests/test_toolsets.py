@@ -120,6 +120,50 @@ class TestCreateCustomToolset:
             del TOOLSETS["_test_custom"]
 
 
+class TestGetToolsetNames:
+    def test_returns_list_of_strings(self):
+        names = get_toolset_names()
+        assert isinstance(names, list)
+        for name in names:
+            assert isinstance(name, str)
+
+    def test_contains_known_toolsets(self):
+        names = get_toolset_names()
+        for known in ["web", "terminal", "debugging"]:
+            assert known in names
+
+    def test_all_names_are_valid_toolsets(self):
+        """Every name returned by get_toolset_names should be resolvable."""
+        for name in get_toolset_names():
+            assert validate_toolset(name), f"{name} in get_toolset_names() but validate_toolset returned False"
+
+
+class TestGetAllToolsets:
+    def test_returns_dict(self):
+        all_ts = get_all_toolsets()
+        assert isinstance(all_ts, dict)
+
+    def test_contains_known_toolsets(self):
+        all_ts = get_all_toolsets()
+        assert "web" in all_ts
+        assert "terminal" in all_ts
+
+    def test_returns_copy(self):
+        """Mutating the returned dict should not affect TOOLSETS."""
+        all_ts = get_all_toolsets()
+        all_ts["_injected"] = {}
+        assert "_injected" not in TOOLSETS
+
+    def test_values_have_required_keys(self):
+        """Every toolset in get_all_toolsets() should have description and tools.
+        Plugin-synthesized toolsets may omit 'includes'; only TOOLSETS entries are
+        guaranteed to have it (covered by TestToolsetConsistency).
+        """
+        for name, ts in get_all_toolsets().items():
+            assert "description" in ts, f"{name} missing description"
+            assert "tools" in ts, f"{name} missing tools"
+
+
 class TestToolsetConsistency:
     """Verify structural integrity of the built-in TOOLSETS dict."""
 
@@ -134,10 +178,19 @@ class TestToolsetConsistency:
             for inc in ts["includes"]:
                 assert inc in TOOLSETS, f"{name} includes unknown toolset '{inc}'"
 
-    def test_hermes_platforms_share_core_tools(self):
-        """All hermes-* platform toolsets should have the same tools."""
-        platforms = ["hermes-cli", "hermes-telegram", "hermes-discord", "hermes-whatsapp", "hermes-slack", "hermes-signal", "hermes-homeassistant"]
+    def test_hermes_messaging_platforms_share_core_tools(self):
+        """All hermes-* messaging platform toolsets should have identical tools.
+
+        Excludes hermes-acp, hermes-api-server, hermes-gateway which serve
+        different architectural roles and have distinct tool requirements.
+        """
+        excluded = {"hermes-acp", "hermes-api-server", "hermes-gateway"}
+        platforms = [n for n in TOOLSETS if n.startswith("hermes-") and n not in excluded]
+        assert len(platforms) >= 7, f"Expected at least 7 messaging platforms, got {len(platforms)}"
         tool_sets = [set(TOOLSETS[p]["tools"]) for p in platforms]
-        # All platform toolsets should be identical
-        for ts in tool_sets[1:]:
-            assert ts == tool_sets[0]
+        reference = tool_sets[0]
+        for i, ts in enumerate(tool_sets[1:], start=1):
+            assert ts == reference, (
+                f"{platforms[i]} tools differ from {platforms[0]}: "
+                f"extra={ts - reference}, missing={reference - ts}"
+            )
