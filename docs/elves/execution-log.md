@@ -1731,3 +1731,21 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7879/7879 pass (+30 from Scout 70)
 
 **Commit:** 1a0cb36f — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 71 — 2026-04-20
+
+**Objective:** Coverage gaps — utils.py atomic write helpers + is_truthy_value edge cases
+
+**Extended:** `tests/test_utils_truthy_values.py` — +12 tests (was 4)
+
+### Additions:
+- `is_truthy_value()`: bool passthrough True/False, non-str/non-bool via bool()
+- `env_var_enabled()`: missing env var → False
+- `atomic_json_write()`: valid JSON, parent dir creation, overwrite, indent=4, non-ASCII
+- `atomic_yaml_write()`: valid YAML, parent dir creation, extra_content append, overwrite
+
+**Results:** 7891/7891 pass (+12 from Scout 71)
+
+**Commit:** fbe56cb7 — pushed to fork (hamzadiaz/hermes-agent)
