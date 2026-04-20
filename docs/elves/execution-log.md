@@ -4,6 +4,27 @@
 
 ---
 
+## Scout 62 — Broader exploratory scan: codex_models.py tests (2026-04-20T~12:10Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `hermes_cli/codex_models.py` had no test file despite complex logic in:
+  - `_add_forward_compat_models()`: synthetic model injection using template-based forward-compat rules
+  - `_read_cache_models()`: JSON cache parsing with priority sorting, dedup, hidden/unsupported filtering
+  - `_read_default_model()`: TOML config parsing with error handling
+- Added `tests/hermes_cli/test_codex_models.py` with 27 tests covering all three functions including edge cases:
+  - Forward compat: no templates, older model triggers synthetic, newer already present, dedup, order
+  - Cache models: missing file, invalid JSON, priority sort, hidden/hide/supported_in_api filtering, missing slug, non-dict items, dedup, no-priority default rank
+  - Default model: missing config, valid, whitespace strip, empty/whitespace-only, invalid TOML, no model key
+- 7552/7552 pass (up from 7525).
+
+**Files changed:**
+- `tests/hermes_cli/test_codex_models.py`: new file, 27 tests
+
+---
+
 ## Scout 61 — Broader exploratory scan: DEFAULT_DB_PATH cleanup + image_generation tests (2026-04-20T~11:45Z)
 
 **Duration:** ~25m
