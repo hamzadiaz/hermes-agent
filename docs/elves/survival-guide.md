@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 28 complete. Scout 29 next.
+Reason: Open-ended mode active. Scout 29 complete. Scout 30 next.
 ```
 
 ## Current Phase
-SCOUT 28 COMPLETE — Regression test added for Scout 26 HERMES_HOME fallback fix. 7425/7425 tests pass.
+SCOUT 29 COMPLETE — Added explicit auxiliary.session_search.model config to adonch/musa/redwan. 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 29: Explore upstream changes for known issues, look for any other systemic improvements
+Scout 30: Check gateway health, error log patterns since restart, broader systemic improvements
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -54,7 +54,8 @@ Scout 29: Explore upstream changes for known issues, look for any other systemic
 - **Scout 26** ✅ Repo AGENTS.md poisoning system prompts: run_agent.py now falls back to HERMES_HOME not os.getcwd(); prevents false tool advertising in claude_code_client sessions
 - **Scout 27** ✅ Learnings L22+L23 committed; historical errors confirmed old-gateway-only; all static criteria verified; no new code changes needed
 - **Scout 28** ✅ Regression test added for HERMES_HOME context_cwd fallback (3 tests, 7425/7425 total)
-- **Scout 29** 🔄 Exploring further improvements
+- **Scout 29** ✅ auxiliary.session_search.model: gemini-3.1-flash-lite-preview added to adonch/musa/redwan configs; 7425/7425 pass
+- **Scout 30** 🔄 Gateway health check + error log audit + systemic improvements
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 29 — Explicit session_search model for Google Gemini agents (2026-04-20T07:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Traced auto-detection code for `auxiliary.session_search`: without explicit config, `_try_custom_endpoint` uses `_read_main_model()` = `gemini-3.1-pro-preview` for Gemini agents
+- With `auxiliary.session_search.model: gemini-3.1-flash-lite-preview` set, line 1007 in `auxiliary_client.py` (`final_model = model or resolved`) ensures the lite model wins
+- Added `auxiliary.session_search` section to **adonch**, **musa**, **redwan** configs (all 3 are `custom:google-gemini` agents without prior auxiliary config)
+- mark already had this correctly configured
+- Non-Gemini agents (alex/codex/malik openai-codex, buni/claude/donch claude-code) left as-is — their auto-detection paths are different
+- Test suite: **7425/7425 pass** (no regressions) ✅
+
+**Files changed (outside git repo — ~/.hermes-agents/):**
+- `~/.hermes-agents/adonch/config.yaml` — added `auxiliary.session_search` section
+- `~/.hermes-agents/musa/config.yaml` — added `auxiliary.session_search` section
+- `~/.hermes-agents/redwan/config.yaml` — added `auxiliary.session_search` section
+
+---
+
 ## Scout 28 — Regression test for HERMES_HOME context_cwd fallback (2026-04-20T06:50Z)
 
 **Duration:** ~20m
