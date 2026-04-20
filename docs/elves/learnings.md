@@ -165,3 +165,33 @@ Downstream symptom: `test_managed_media_gateways.py` tests that expect no `OPENA
 - 6 DM bots tested via Telegram: Hermes, Codex, Claude, MALIK, Mark, Buni — all confirmed terminal available after /new
 - Fleet Mission Control: 11/11 running, 0 errors, 0 idle
 - Memory stack verified: session_search, skills, cron, Obsidian all working correctly
+
+## L22: Using `object()` as a mock DB causes spurious ERROR-level log pollution (2026-04-20)
+
+`object()` is truthy, so it bypasses the `if db is None` guard in `session_search()`. Any code path that then calls a SessionDB method (e.g., `db.list_sessions_rich()`) raises `AttributeError`, which is caught and logged at ERROR level. These errors land in `errors.log` and look like production failures.
+
+**Fix**: use `db=None` for tests that don't need a DB. The `db is None` guard returns a clean `"not available"` error with no logging. Reserve `MagicMock()` for tests that need to exercise DB method call paths.
+
+**Symptom pattern**: `'object' object has no attribute 'list_sessions_rich'` appearing in errors.log despite no production issues.
+
+**Affected file**: `tests/tools/test_session_search.py` — `test_empty_query_no_db_returns_error` and `test_whitespace_query_no_db_returns_error` were using `object()`. Fixed 2026-04-20 (Scout 25).
+
+## L23: Dev AGENTS.md poisons production sessions via WorkingDirectory + missing TERMINAL_CWD (2026-04-20)
+
+All gateway LaunchAgents set `WorkingDirectory=/Users/hamzadiaz/.hermes/hermes-agent` (the repo). When `TERMINAL_CWD` is not set, `build_context_files_prompt(cwd=None)` falls back to `os.getcwd()` = the repo dir. The repo's `AGENTS.md` (developer docs advertising `terminal_tool.py`, `read_file`, `write_file`, etc.) is then injected into every production session's system prompt.
+
+**Symptom**: Agents report "I have terminal, read_file, write_file tools" in sessions where only MCP browser tools are wired (e.g., `claude_code_client` path). Confirmed in session `20260420_011907_ff163f66`.
+
+**Fix** (in `run_agent.py`):
+```python
+_context_cwd = (
+    os.getenv("TERMINAL_CWD")
+    or os.getenv("HERMES_HOME")
+    or None
+)
+```
+`HERMES_HOME` dirs (`~/.hermes/`, `~/.hermes-agents/<name>/`) have no `AGENTS.md`, so `build_context_files_prompt` finds nothing and injects nothing. Token savings: ~10K tokens per session.
+
+**Key principle**: never use `os.getcwd()` as a fallback for config file discovery in a process that runs from a developer repo dir. Always use the user's config home or an explicit env var.
+
+**Fixed 2026-04-20 (Scout 26)**; all 11 gateways restarted to pick up the change.
