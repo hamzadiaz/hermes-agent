@@ -168,6 +168,23 @@ class _ApprovalEntry:
 _gateway_queues: dict[str, list] = {}        # session_key → [_ApprovalEntry, …]
 _gateway_notify_cbs: dict[str, object] = {}  # session_key → callable(approval_data)
 
+# Thread-local session context: allows tests and isolated agent threads to
+# override HERMES_EXEC_ASK / HERMES_SESSION_KEY without mutating the shared
+# os.environ, eliminating race conditions between concurrent test threads.
+_thread_local = threading.local()
+
+
+def set_thread_approval_context(*, is_ask: bool, session_key: str) -> None:
+    """Set thread-local approval context (overrides os.environ reads)."""
+    _thread_local.is_ask = is_ask
+    _thread_local.session_key = session_key
+
+
+def clear_thread_approval_context() -> None:
+    """Clear thread-local approval context (restore os.environ fallback)."""
+    _thread_local.is_ask = None
+    _thread_local.session_key = None
+
 
 def register_gateway_notify(session_key: str, cb) -> None:
     """Register a per-session callback for sending approval requests to the user.
@@ -634,7 +651,10 @@ def check_all_command_guards(command: str, env_type: str,
 
     is_cli = os.getenv("HERMES_INTERACTIVE")
     is_gateway = os.getenv("HERMES_GATEWAY_SESSION")
-    is_ask = os.getenv("HERMES_EXEC_ASK")
+    # Thread-local takes precedence over os.environ so isolated test threads
+    # and agent subprocesses don't race on the shared environment dict.
+    _tl_is_ask = getattr(_thread_local, "is_ask", None)
+    is_ask = True if _tl_is_ask else os.getenv("HERMES_EXEC_ASK")
 
     # Preserve the existing non-interactive behavior: outside CLI/gateway/ask
     # flows, we do not block on approvals and we skip external guard work.
@@ -660,7 +680,8 @@ def check_all_command_guards(command: str, env_type: str,
     # Collect warnings that need approval
     warnings = []  # list of (pattern_key, description, is_tirith)
 
-    session_key = os.getenv("HERMES_SESSION_KEY", "default")
+    _tl_session_key = getattr(_thread_local, "session_key", None)
+    session_key = _tl_session_key if _tl_session_key else os.getenv("HERMES_SESSION_KEY", "default")
 
     # Tirith block/warn → approvable warning with rich findings.
     # Previously, tirith "block" was a hard block with no approval prompt.

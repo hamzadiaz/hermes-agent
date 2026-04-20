@@ -68,8 +68,19 @@ def _make_runner():
 
 
 def _clear_approval_state():
-    """Reset all module-level approval state between tests."""
+    """Reset all module-level approval state between tests.
+
+    Signals all pending approval entries before clearing queues so that any
+    background threads from a previous test (e.g. a failed test that didn't
+    reach its t.join()) unblock immediately instead of timing out and racing
+    with the next test's env-var teardown.
+    """
     from tools import approval as mod
+    with mod._lock:
+        for entries in mod._gateway_queues.values():
+            for entry in entries:
+                entry.result = "cancelled"
+                entry.event.set()
     mod._gateway_queues.clear()
     mod._gateway_notify_cbs.clear()
     mod._session_approved.clear()
@@ -374,6 +385,18 @@ class TestBlockingApprovalE2E:
 
     def setup_method(self):
         _clear_approval_state()
+        # Stub out the tirith binary call so tests don't pay subprocess cold-start
+        # latency (3-15s).  These tests exercise the notification mechanism, not
+        # tirith's threat analysis; the dangerous-command detector still fires.
+        self._tirith_patcher = patch(
+            "tools.tirith_security.check_command_security",
+            return_value={"action": "allow", "findings": [], "summary": ""},
+        )
+        self._tirith_patcher.start()
+
+    def teardown_method(self):
+        self._tirith_patcher.stop()
+        _clear_approval_state()
 
     def test_blocking_approval_approve_once(self):
         """check_all_command_guards blocks until resolve_gateway_approval is called."""
@@ -390,20 +413,19 @@ class TestBlockingApprovalE2E:
         result_holder = [None]
 
         def agent_thread():
-            os.environ["HERMES_EXEC_ASK"] = "1"
-            os.environ["HERMES_SESSION_KEY"] = session_key
+            from tools.approval import set_thread_approval_context, clear_thread_approval_context
+            set_thread_approval_context(is_ask=True, session_key=session_key)
             try:
                 result_holder[0] = check_all_command_guards(
                     "rm -rf /important", "local"
                 )
             finally:
-                os.environ.pop("HERMES_EXEC_ASK", None)
-                os.environ.pop("HERMES_SESSION_KEY", None)
+                clear_thread_approval_context()
 
         t = threading.Thread(target=agent_thread)
         t.start()
 
-        for _ in range(50):
+        for _ in range(200):
             if notified:
                 break
             time.sleep(0.05)
@@ -432,19 +454,18 @@ class TestBlockingApprovalE2E:
         result_holder = [None]
 
         def agent_thread():
-            os.environ["HERMES_EXEC_ASK"] = "1"
-            os.environ["HERMES_SESSION_KEY"] = session_key
+            from tools.approval import set_thread_approval_context, clear_thread_approval_context
+            set_thread_approval_context(is_ask=True, session_key=session_key)
             try:
                 result_holder[0] = check_all_command_guards(
                     "rm -rf /important", "local"
                 )
             finally:
-                os.environ.pop("HERMES_EXEC_ASK", None)
-                os.environ.pop("HERMES_SESSION_KEY", None)
+                clear_thread_approval_context()
 
         t = threading.Thread(target=agent_thread)
         t.start()
-        for _ in range(50):
+        for _ in range(200):
             if notified:
                 break
             time.sleep(0.05)
@@ -469,8 +490,8 @@ class TestBlockingApprovalE2E:
         result_holder = [None]
 
         def agent_thread():
-            os.environ["HERMES_EXEC_ASK"] = "1"
-            os.environ["HERMES_SESSION_KEY"] = session_key
+            from tools.approval import set_thread_approval_context, clear_thread_approval_context
+            set_thread_approval_context(is_ask=True, session_key=session_key)
             try:
                 with patch("tools.approval._get_approval_config",
                            return_value={"gateway_timeout": 1}):
@@ -478,8 +499,7 @@ class TestBlockingApprovalE2E:
                         "rm -rf /important", "local"
                     )
             finally:
-                os.environ.pop("HERMES_EXEC_ASK", None)
-                os.environ.pop("HERMES_SESSION_KEY", None)
+                clear_thread_approval_context()
 
         t = threading.Thread(target=agent_thread)
         t.start()
@@ -505,13 +525,12 @@ class TestBlockingApprovalE2E:
 
         def make_agent(idx, cmd):
             def run():
-                os.environ["HERMES_EXEC_ASK"] = "1"
-                os.environ["HERMES_SESSION_KEY"] = session_key
+                from tools.approval import set_thread_approval_context, clear_thread_approval_context
+                set_thread_approval_context(is_ask=True, session_key=session_key)
                 try:
                     results[idx] = check_all_command_guards(cmd, "local")
                 finally:
-                    os.environ.pop("HERMES_EXEC_ASK", None)
-                    os.environ.pop("HERMES_SESSION_KEY", None)
+                    clear_thread_approval_context()
             return run
 
         threads = [
@@ -523,7 +542,7 @@ class TestBlockingApprovalE2E:
             t.start()
 
         # Wait for all 3 to block
-        for _ in range(100):
+        for _ in range(200):
             if len(notified) >= 3:
                 break
             time.sleep(0.05)
@@ -557,13 +576,12 @@ class TestBlockingApprovalE2E:
 
         def make_agent(idx, cmd):
             def run():
-                os.environ["HERMES_EXEC_ASK"] = "1"
-                os.environ["HERMES_SESSION_KEY"] = session_key
+                from tools.approval import set_thread_approval_context, clear_thread_approval_context
+                set_thread_approval_context(is_ask=True, session_key=session_key)
                 try:
                     results[idx] = check_all_command_guards(cmd, "local")
                 finally:
-                    os.environ.pop("HERMES_EXEC_ASK", None)
-                    os.environ.pop("HERMES_SESSION_KEY", None)
+                    clear_thread_approval_context()
             return run
 
         threads = [
@@ -574,7 +592,7 @@ class TestBlockingApprovalE2E:
             t.start()
 
         # Wait for both threads to reach the blocking approval queue
-        for _ in range(100):
+        for _ in range(200):
             if pending_approval_count(session_key) >= 2:
                 break
             time.sleep(0.05)
@@ -601,18 +619,26 @@ class TestFallbackNoCallback:
 
     def setup_method(self):
         _clear_approval_state()
+        self._tirith_patcher = patch(
+            "tools.tirith_security.check_command_security",
+            return_value={"action": "allow", "findings": [], "summary": ""},
+        )
+        self._tirith_patcher.start()
+
+    def teardown_method(self):
+        self._tirith_patcher.stop()
+        _clear_approval_state()
 
     def test_no_callback_returns_approval_required(self):
         """Without a registered callback, the old approval_required path is used."""
         from tools.approval import check_all_command_guards, _pending
 
-        os.environ["HERMES_EXEC_ASK"] = "1"
-        os.environ["HERMES_SESSION_KEY"] = "no-callback-test"
+        from tools.approval import set_thread_approval_context, clear_thread_approval_context
+        set_thread_approval_context(is_ask=True, session_key="no-callback-test")
         try:
             result = check_all_command_guards("rm -rf /important", "local")
         finally:
-            os.environ.pop("HERMES_EXEC_ASK", None)
-            os.environ.pop("HERMES_SESSION_KEY", None)
+            clear_thread_approval_context()
 
         assert result["approved"] is False
         assert result.get("status") == "approval_required"
