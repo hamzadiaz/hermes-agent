@@ -4,6 +4,42 @@
 
 ---
 
+## Scout 87 — Broader exploratory scan: gateway_run + gateway_config + model_metadata_url helpers (2026-04-20T~ongoing)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- `gateway/run.py` pure helpers: new `tests/gateway/test_run_pure_helpers.py` (26 tests)
+  - `_platform_config_key()`: LOCAL→"cli", all other Platform enum values use `.value`
+  - `_resolve_gateway_model()`: string/dict/nested/absent config, None triggers file read
+  - `_apply_event_runtime_overrides()`: model/provider/base_url/api_mode/api_key_env overrides; empty overrides ignored; original runtime_kwargs not mutated; missing attrs handled
+- `gateway/config.py` pure helpers: new `tests/gateway/test_config_pure_helpers.py` (26 tests)
+  - `_coerce_bool()`: yes/no/on/off/true/false/1/0 strings, whitespace stripped, None→default, unknown→default, uppercase normalized
+  - `_normalize_unauthorized_dm_behavior()`: pair/ignore normalized, case-insensitive, whitespace stripped, unknown/None/empty→default
+- `agent/model_metadata.py` URL/payload helpers: new `tests/agent/test_model_metadata_url_helpers.py` (53 tests)
+  - `_normalize_base_url()`: strip whitespace + trailing slashes, None→""
+  - `_is_openrouter_base_url()`: openrouter.ai detection, case-insensitive
+  - `_is_custom_endpoint()`: any non-empty, non-openrouter, non-cli:// URL is custom
+  - `_infer_provider_from_url()`: maps URL patterns to provider names (anthropic/openai/google/deepseek/openrouter/etc.)
+  - `_is_known_provider_base_url()`: delegates to _infer_provider_from_url truthiness
+  - `_iter_nested_dicts()`: yields all dicts from flat/nested/list structures
+  - `_coerce_reasonable_int()`: 1024–10M range, comma-formatted strings, bool rejected
+  - `_extract_first_int()`: case-insensitive key matching, nested lookup, out-of-range skipped
+- 8961/8961 pass (+106 net new from Scout 87)
+
+**Fix:**
+- `test_none_config_returns_empty` was wrong — None config triggers `_load_gateway_config()` which reads real file; changed to assert isinstance(result, str)
+
+**Files changed:**
+- `tests/gateway/test_run_pure_helpers.py`: new file, 26 tests
+- `tests/gateway/test_config_pure_helpers.py`: new file, 26 tests
+- `tests/agent/test_model_metadata_url_helpers.py`: new file, 53 tests
+
+**Commit:** e4c4d975 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 86 — Broader exploratory scan: hermes_constants + web_tools_env + run_agent pure helpers (2026-04-20T~ongoing)
 
 **Duration:** ~20m
