@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 78 — Broader exploratory scan: auth_commands pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `hermes_cli/auth_commands.py` had no test file; pure helpers untested
+- Added `tests/hermes_cli/test_auth_commands_helpers.py` with 20 tests covering:
+  - `_oauth_default_label()`: formats "{provider}-oauth-{count}", edge cases
+  - `_api_key_default_label()`: formats "api-key-{count}"
+  - `_display_source()`: strips "manual:" prefix, leaves other sources unchanged
+  - `_normalize_provider()`: "or"/"open-router"→"openrouter", Anthropic lowercased, None/empty→"", whitespace stripped
+- 8189/8189 pass
+
+**Files changed:**
+- `tests/hermes_cli/test_auth_commands_helpers.py`: new file, 20 tests
+
+---
+
 ## Scout 77 — Broader exploratory scan: tts_tool + gateway text helpers (2026-04-20T~ongoing)
 
 **Duration:** ~10m
