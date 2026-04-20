@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 40 — Broader hardening audit (2026-04-20T~07:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited all 11 state.dbs (main + 10 agents): all at schema version 6, zero orphaned messages, no integrity issues.
+- Reviewed module-level HERMES_HOME constants across codebase: `cron/jobs.py` (JOBS_FILE) and `tools/memory_tool.py` (MEMORY_DIR) are already manually patched in their respective tests. `acp_adapter/session.py` already had a comment explaining why it passes `db_path=get_hermes_home()/state.db` dynamically. Pattern is documented in L25.
+- All 11 gateways running at exit code 0. Telegram fallback IPs active (network issue, not a bug). Session search empty-content retries are expected behavior (model finding no relevant sessions).
+- Verified hermes-cli toolset includes `session_search`, `memory`, `skills_list`, `skill_view`, `skill_manage` — all acceptance criteria tools present.
+- Confirmed test leakage is fully fixed: after a full 7426-test run, `cron_job-1` session count is still exactly 108 (no new leakage).
+- No code changes needed.
+
+**Files changed:**
+- None (audit only)
+
+**Tests:** 7426/7426 pass (unchanged)
+
+---
+
 ## Scout 39 — Cron health + SessionDB test isolation fix (2026-04-20T~06:00Z)
 
 **Duration:** ~30m

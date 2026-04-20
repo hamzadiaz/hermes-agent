@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 39 complete. Scout 40 next.
+Reason: Open-ended mode active. Scout 40 complete. Scout 41 next.
 ```
 
 ## Current Phase
-SCOUT 39 COMPLETE — cron health investigated; SessionDB test isolation bug found and fixed; 7426/7426 tests pass.
+SCOUT 40 COMPLETE — broader hardening audit; session DB integrity confirmed on all 11 databases; fleet healthy; module-level HERMES_HOME pattern documented; 7426/7426 tests pass.
 
 ## Next Exact Batch
-Scout 40: Broader hardening — audit remaining test isolation issues (other module-level HERMES_HOME caches), check agent toolset configs for minimal agents, session DB integrity review
+Scout 41: Deep acceptance criteria verification — review all 7 criteria, identify any remaining code-fixable gaps; look for any subtle routing or toolset bugs in agent configs
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -65,7 +65,8 @@ Scout 40: Broader hardening — audit remaining test isolation issues (other mod
 - **Scout 37** ✅ Acceptance criteria audit: all code-fixable items verified; routing confirmed correct for all 11 gateways; 7425/7425 pass
 - **Scout 38** ✅ Deep code audit: context_compressor, session_search, fleet health, mark/buni stable; no code changes
 - **Scout 39** ✅ Cron health: 108 test-artifact sessions found in prod state.db; root cause = module-level HERMES_HOME caching in SessionDB; fixed + regression test added; 7426/7426 pass
-- **Scout 40** 🔄 Broader hardening: other module-level HERMES_HOME caches, minimal agent toolset configs, session DB integrity
+- **Scout 40** ✅ Broader hardening: all 11 state.dbs healthy (schema 6, 0 orphaned); hermes-cli toolset correct; module-level HERMES_HOME pattern reviewed (cron/memory patched in tests; acp_adapter already dynamic); no new code bugs
+- **Scout 41** 🔄 Deep acceptance criteria verification
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
