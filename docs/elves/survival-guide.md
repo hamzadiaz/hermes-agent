@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 30 complete. Scout 31 next.
+Reason: Open-ended mode active. Scout 31 complete. Scout 32 next.
 ```
 
 ## Current Phase
-SCOUT 30 COMPLETE — Fleet monitor kick-started; all 10 agents now have explicit auxiliary.session_search config. 7425/7425 tests pass.
+SCOUT 31 COMPLETE — All 10 agents have explicit auxiliary.compression config (Gemini lite). 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 31: Explore toolset audit (correct tools advertised per agent) + check flush_memories/compression configs
+Scout 32: Check flush_memories config; look for any remaining systemic improvements; broader scan
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -56,7 +56,8 @@ Scout 31: Explore toolset audit (correct tools advertised per agent) + check flu
 - **Scout 28** ✅ Regression test added for HERMES_HOME context_cwd fallback (3 tests, 7425/7425 total)
 - **Scout 29** ✅ auxiliary.session_search.model: gemini-3.1-flash-lite-preview added to adonch/musa/redwan configs; 7425/7425 pass
 - **Scout 30** ✅ Fleet monitor kick-started; session_search config added to all 10 agents; 7425/7425 pass
-- **Scout 31** 🔄 Toolset audit + flush_memories/compression config review
+- **Scout 31** ✅ Toolset audit clean; compression config added to all 9 remaining agents; 7425/7425 pass
+- **Scout 32** 🔄 flush_memories config + broader scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

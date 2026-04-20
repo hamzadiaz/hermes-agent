@@ -4,6 +4,27 @@
 
 ---
 
+## Scout 31 — Explicit compression config for all agents (2026-04-20T08:45Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Toolset audit: only mark has explicit `toolsets: [hermes-cli]`; other agents use defaults; no false advertising
+- Compression audit: malik was routing compression to Codex (gpt-5.4 via Responses API) — working but expensive
+- Added explicit `auxiliary.compression` config (Gemini endpoint) to ALL agents that didn't have it:
+  - alex, codex, malik (openai-codex): now use Gemini lite for compression instead of Codex
+  - buni, donch, claude (claude-code): same, with explicit base_url + api_key
+  - adonch, musa, redwan (google-gemini): added compression (empty base_url/api_key — use custom_providers auto-detection but with explicit model hint)
+- mark already had compression section configured
+- Result: all 10 agents now have explicit auxiliary.compression config
+- Test suite: **7425/7425 pass** ✅
+
+**Files changed (outside git repo — ~/.hermes-agents/):**
+- All 9 remaining agents: added `auxiliary.compression` section with `model: gemini-3.1-flash-lite-preview`
+
+---
+
 ## Scout 30 — session_search explicit config for all remaining agents (2026-04-20T08:00Z)
 
 **Duration:** ~30m
