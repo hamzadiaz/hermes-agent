@@ -4,6 +4,37 @@
 
 ---
 
+## Scout 54 — flush_memories deep audit + auto-reset flow (Fix B) (2026-04-20T~08:00Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- **Fix B confirmed correct** (gateway/run.py:2198-2259):
+  - `was_auto_reset=True` → `_shutdown_gateway_honcho` + `_evict_cached_agent` → `was_auto_reset=False`
+  - No double-flush: message handler path does NOT call `_async_flush_memories` — only evicts state
+  - Pre-reset memory flush (line 1345) fires from `_session_expiry_watcher` before the reset
+- **flush_memories dual-path re-verified:**
+  - Path 1 (inline): `run_agent.py:5686` `flush_memories()` before `_compress_context`
+  - Path 2 (session-end): `gateway/run.py:674` `_flush_memories_for_session` — full AIAgent with memory/skills/obsidian toolsets
+  - For `claude-code` provider: `api_key = "claude-code"` is truthy → flush_memories DOES fire for claude-code agents
+  - Flush skips cron sessions (line 686: `if old_session_id.startswith("cron_")`)
+- **MCP isolation + temp cleanup still in place** (`agent/claude_code_client.py`):
+  - `_cleanup_mcp_tmp` called in all `finally` blocks (lines 536, 576, 829)
+  - `--tools ""` + empty `--mcp-config` prevents Claude Code built-ins from shadowing Hermes tools
+- **Test coverage confirmed:**
+  - `test_flush_memories_codex.py`: 5 tests ✅
+  - `test_honcho_lifecycle.py`: includes `test_auto_reset_cleans_gateway_honcho_and_agent_cache_before_run` ✅
+  - `test_async_memory_flush.py`: `test_auto_reset_creates_new_session_after_flush` ✅
+  - `test_session_reset_notify.py`: auto_reset_reason stored ✅
+  - Total: 30/30 pass in these files ✅
+- No code bugs found. No new tests needed.
+- 7440/7440 pass.
+
+**Files changed:** None — verification only.
+
+---
+
 ## Scout 53 — Context compressor + session hygiene deep audit (2026-04-20T~07:30Z)
 
 **Duration:** ~35m

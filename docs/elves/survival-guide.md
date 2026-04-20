@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 53 complete. Scout 54 next.
+Reason: Open-ended mode active. Scout 54 complete. Scout 55 next.
 ```
 
 ## Current Phase
-SCOUT 53 COMPLETE — Compression system: all 10 agents verified with gemini-3.1-flash-lite-preview; context_compressor 34 tests + session hygiene 19 tests all pass; parent_session_id correctly set on splits; 7440/7440 pass.
+SCOUT 54 COMPLETE — Fix B correct; flush_memories dual-path works for all providers including claude-code; MCP isolation+cleanup in place; 30/30 auto-reset tests pass; 7440/7440 pass.
 
 ## Next Exact Batch
-Scout 54: flush_memories deep audit + auto-reset flow verification (Fix B correctness)
+Scout 55: Broader test coverage scan — identify any remaining coverage gaps in acceptance criteria paths
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -79,7 +79,8 @@ Scout 54: flush_memories deep audit + auto-reset flow verification (Fix B correc
 - **Scout 51** ✅ L26+L27 added to learnings.md; L6 updated; 7440/7440 pass
 - **Scout 52** ✅ Skills hub accuracy verified; vault A; error log clean; 7440/7440 pass
 - **Scout 53** ✅ Compression system verified; all 10 agents gemini-3.1-flash-lite-preview; 7440/7440 pass
-- **Scout 54** 🔄 flush_memories deep audit + auto-reset flow (Fix B)
+- **Scout 54** ✅ Fix B correct; flush_memories dual-path verified; 30/30 auto-reset tests pass
+- **Scout 55** 🔄 Broader test coverage scan — remaining gaps in acceptance criteria paths
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
