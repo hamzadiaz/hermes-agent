@@ -158,17 +158,17 @@ class TestSessionSearch:
         assert result["success"] is False
         assert "not available" in result["error"].lower()
 
-    def test_empty_query_returns_error(self):
+    def test_empty_query_no_db_returns_error(self):
         from tools.session_search_tool import session_search
-        mock_db = object()
-        result = json.loads(session_search(query="", db=mock_db))
+        result = json.loads(session_search(query="", db=None))
         assert result["success"] is False
+        assert "not available" in result["error"].lower()
 
-    def test_whitespace_query_returns_error(self):
+    def test_whitespace_query_no_db_returns_error(self):
         from tools.session_search_tool import session_search
-        mock_db = object()
-        result = json.loads(session_search(query="   ", db=mock_db))
+        result = json.loads(session_search(query="   ", db=None))
         assert result["success"] is False
+        assert "not available" in result["error"].lower()
 
     def test_current_session_excluded(self):
         """session_search should never return the current session."""

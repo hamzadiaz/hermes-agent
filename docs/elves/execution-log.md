@@ -4,6 +4,23 @@
 
 ---
 
+## Scout 25 — session_search ERROR log noise fix (2026-04-20T05:00Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Investigated recurring `'object' object has no attribute 'list_sessions_rich'` errors in `errors.log`
+- **Root cause found**: `tests/tools/test_session_search.py` lines 163/169 used `mock_db = object()` as a stub DB with empty/whitespace queries. Empty query routes to `_list_recent_sessions()` which calls `db.list_sessions_rich()` → AttributeError → caught and logged at ERROR level
+- These were 100% test-generated errors, not production bugs. Production gateway always passes `None` or proper `SessionDB()`.
+- **Fix**: Renamed `test_empty_query_returns_error` → `test_empty_query_no_db_returns_error` and `test_whitespace_query_returns_error` → `test_whitespace_query_no_db_returns_error`; changed `object()` → `None`; added `"not available" in error` assertion. Now both tests hit the clean `db is None` guard at `session_search()` line 260, no AttributeError thrown, no ERROR log noise.
+- Full test suite: **7422/7422 pass** ✅
+
+**Files changed:**
+- `tests/tools/test_session_search.py` — 2 test methods corrected
+
+---
+
 ## Scout 24 — Gateway Architecture + Error Log Audit (2026-04-20T04:00Z)
 
 **Duration:** ~25m

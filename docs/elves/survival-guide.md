@@ -18,16 +18,15 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 24 complete. Scout 25 next.
+Reason: Open-ended mode active. Scout 25 complete. Scout 26 next.
 ```
 
 ## Current Phase
-SCOUT 24 COMPLETE — Gateway architecture clarified (1 main + 10 agent gateways). Error log audited — gemini-3.1-flash 404s are historical (old gateway, pre-01:55AM). All 11 gateways healthy.
+SCOUT 25 COMPLETE — `'object' object has no attribute 'list_sessions_rich'` ERROR log noise traced to test mock misuse; fixed in test_session_search.py. 7422/7422 pass.
 
 ## Next Exact Batch
-Scout 25: Possible actions:
-- Run full test suite to confirm 7422/7422 still passing
-- Audit session_search empty content issue (production quality)
+Scout 26: Possible actions:
+- Audit session_search empty content issue (production quality — Gemini returning empty summaries)
 - Check remaining acceptance criteria
 - Look for other stability improvements
 
@@ -54,6 +53,7 @@ Scout 25: Possible actions:
 - **Scout 22** ✅ Full dashboard audit: 11/11 agents, vault A, crons healthy, all models correct, Ralph 16 reviewers
 - **Scout 23** ✅ Telegram reconnect audit (robust); flaky approval E2E test fixed (tirith cold-start + env-var race + missing signal in _clear_approval_state); 7422/7422 tests pass
 - **Scout 24** ✅ Gateway architecture audited: 1 main + 10 agent gateways; gemini-3.1-flash 404s are historical; all processes healthy
+- **Scout 25** ✅ `'object' object no attr list_sessions_rich` ERROR noise fixed: test mock misuse (object() → None); 7422/7422 pass
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
