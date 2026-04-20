@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 41 complete. Scout 42 next.
+Reason: Open-ended mode active. Scout 42 complete. Scout 43 next.
 ```
 
 ## Current Phase
-SCOUT 41 COMPLETE — all 7 acceptance criteria audited; 5 code-verifiable criteria confirmed; vault Grade A; Fix A/B confirmed in place; remaining 2 criteria require live user testing.
+SCOUT 42 COMPLETE — Fix A/B tests verified (honcho_lifecycle + agent_cache), session_search inject-most-recent tested, 108 test artifact sessions benign in FTS5, all 10 agents running; 7426/7426 pass.
 
 ## Next Exact Batch
-Scout 42: Further hardening — audit Fix A/B regression tests for completeness, check for any edge cases in session_search inject logic, review cron scheduler behavior with empty jobs.json
+Scout 43: Explore if there are any remaining toolset, model routing, or provider config gaps for any agent; look for any late-session drift that could affect quality
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -67,7 +67,8 @@ Scout 42: Further hardening — audit Fix A/B regression tests for completeness,
 - **Scout 39** ✅ Cron health: 108 test-artifact sessions found in prod state.db; root cause = module-level HERMES_HOME caching in SessionDB; fixed + regression test added; 7426/7426 pass
 - **Scout 40** ✅ Broader hardening: all 11 state.dbs healthy (schema 6, 0 orphaned); hermes-cli toolset correct; module-level HERMES_HOME pattern reviewed (cron/memory patched in tests; acp_adapter already dynamic); no new code bugs
 - **Scout 41** ✅ Acceptance criteria audit: 5/7 criteria code-verified (no-AGENTS.md injection, recency-recall logic, toolsets+vault Grade A, Fix A+B in place); 2 require live user testing (Opus 4.7 continuity, model switching)
-- **Scout 42** 🔄 Further hardening: Fix A/B regression test audit, session_search edge cases
+- **Scout 42** ✅ Fix A/B regression tests verified (test_honcho_lifecycle, test_agent_cache); inject-most-recent logic tested; 108 test-artifact cron sessions benign in FTS5; all 10 agents confirmed running; 7426/7426 pass
+- **Scout 43** 🔄 Provider/routing gaps audit for remaining agents
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

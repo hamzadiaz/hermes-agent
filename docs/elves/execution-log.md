@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 42 — Fix A/B regression audit + FTS5 contamination check (2026-04-20T~08:00Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Verified Fix A regression test: `tests/gateway/test_agent_cache.py::test_session_id_change_different_signature` — confirms different session_ids produce different cache signatures.
+- Verified Fix B regression test: `tests/gateway/test_honcho_lifecycle.py::test_auto_reset_cleans_gateway_honcho_and_agent_cache_before_run` — confirms both `_shutdown_gateway_honcho` and `_evict_cached_agent` are called on auto-reset.
+- Verified inject-most-recent-session test: `tests/tools/test_session_search.py::test_most_recent_session_injected_when_absent_from_keyword_results` and `test_current_root_session_excludes_child_lineage` — both cover the key edge cases.
+- Checked FTS5 impact of 108 test-artifact cron sessions: only 5 have any messages; the "ping" FTS5 matches are from legitimate production sessions (network ping, user ping requests), not test artifacts.
+- All 10 agent gateways confirmed running (verified PIDs, launchctl exit code 0).
+- 7426/7426 tests pass, consistent across multiple runs.
+- No code changes needed.
+
+**Files changed:**
+- None (verification only)
+
+---
+
 ## Scout 41 — Deep acceptance criteria audit (2026-04-20T~07:30Z)
 
 **Duration:** ~20m
