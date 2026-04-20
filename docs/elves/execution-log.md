@@ -4,6 +4,24 @@
 
 ---
 
+## Scout 28 — Regression test for HERMES_HOME context_cwd fallback (2026-04-20T06:50Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Added 3 unit tests in `TestContextCwdFallback` class in `tests/test_run_agent.py`
+- Tests guard against re-introduction of the Scout 26 regression (AGENTS.md poisoning)
+- Test 1: When `TERMINAL_CWD` is set, it's used as the `cwd` for `build_context_files_prompt`
+- Test 2: When `TERMINAL_CWD` is unset, `HERMES_HOME` is used as fallback (not `os.getcwd()`)
+- Test 3: A clean HERMES_HOME (no AGENTS.md) produces no `terminal_tool`/`file_tools` content in the system prompt
+- Full test suite: **7425/7425 pass** (3 new tests) ✅
+
+**Files changed:**
+- `tests/test_run_agent.py` — `TestContextCwdFallback` class added (3 tests)
+
+---
+
 ## Scout 27 — Subsystem audit + historical error log analysis (2026-04-20T06:10Z)
 
 **Duration:** ~30m

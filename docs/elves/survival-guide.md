@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 27 complete. Scout 28 next.
+Reason: Open-ended mode active. Scout 28 complete. Scout 29 next.
 ```
 
 ## Current Phase
-SCOUT 27 COMPLETE — Learnings L22+L23 committed. Historical error log analyzed (all errors from old gateway run). All static acceptance criteria verified. Remaining criteria require live Telegram testing by user.
+SCOUT 28 COMPLETE — Regression test added for Scout 26 HERMES_HOME fallback fix. 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 28: Look for deeper production improvements, agent-specific auxiliary config propagation, or explore upstream changes for anything that fixes known issues
+Scout 29: Explore upstream changes for known issues, look for any other systemic improvements
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -53,7 +53,8 @@ Scout 28: Look for deeper production improvements, agent-specific auxiliary conf
 - **Scout 25** ✅ `'object' object no attr list_sessions_rich` ERROR noise fixed: test mock misuse (object() → None); 7422/7422 pass
 - **Scout 26** ✅ Repo AGENTS.md poisoning system prompts: run_agent.py now falls back to HERMES_HOME not os.getcwd(); prevents false tool advertising in claude_code_client sessions
 - **Scout 27** ✅ Learnings L22+L23 committed; historical errors confirmed old-gateway-only; all static criteria verified; no new code changes needed
-- **Scout 28** 🔄 Agent auxiliary config audit in progress
+- **Scout 28** ✅ Regression test added for HERMES_HOME context_cwd fallback (3 tests, 7425/7425 total)
+- **Scout 29** 🔄 Exploring further improvements
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
