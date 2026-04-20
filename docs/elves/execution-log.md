@@ -1614,3 +1614,27 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 - Overnight elves work ran inside Claude Code — a separate system with its own memory
 - No cross-contamination expected or needed; they are independent memory spaces
 
+
+---
+
+## Scout 65 — 2026-04-20 (continuation after compaction)
+
+**Objective:** Broader exploratory scan — coverage gaps in gateway/status.py pure helpers
+
+**Target:** `gateway/status.py` — 5 pure helper functions with 0 direct unit test coverage
+
+**New file:** `tests/gateway/test_status_pure_helpers.py` — 32 tests
+
+### Functions covered:
+- `_scope_hash(identity)`: determinism, 16-char hex, collision resistance, empty string, unicode
+- `_record_looks_like_gateway(record)`: all 4 valid cmdline patterns (module-style, script-style, `hermes gateway`, `gateway/run.py`), wrong/missing kind, empty/missing/non-list argv, no-match pattern, numeric parts coercion
+- `_read_json_file(path)`: missing file, empty file, whitespace-only, invalid JSON, valid dict, JSON list (→None), JSON number (→None), OSError
+- `_get_lock_dir()`: HERMES_GATEWAY_LOCK_DIR override, XDG_STATE_HOME, default ~/.local/state fallback
+- `_utc_now_iso()`: returns string, parseable ISO format, UTC timezone, close to now
+
+### Test fix:
+- `test_numeric_argv_parts_coerced_to_str` initial assertion was `False` but `_record_looks_like_gateway` correctly returns `True` because `"123 hermes_cli.main gateway"` contains `"hermes_cli.main gateway"`. Fixed assertion to `True`.
+
+**Results:** 7656/7656 pass (+32 from Scout 65)
+
+**Commit:** d5bbf588 — pushed to fork (hamzadiaz/hermes-agent)
