@@ -4,6 +4,33 @@
 
 ---
 
+## Scout 86 — Broader exploratory scan: hermes_constants + web_tools_env + run_agent pure helpers (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `tools/web_tools.py` `_has_env`: added `tests/tools/test_web_tools_env_helpers.py` (6 tests)
+  - set/unset/empty/whitespace-only cases; returns bool
+- `hermes_constants.py` pure helpers: added `tests/test_hermes_constants.py` (19 tests)
+  - `display_hermes_home()`: tilde prefix when under home, returns str, custom absolute path
+  - `parse_reasoning_effort()`: empty/whitespace→None, "none"→{enabled:False}, case-insensitive, strip whitespace, unknown→None, all VALID_REASONING_EFFORTS accepted
+  - `get_optional_skills_dir()`: env override, default from HERMES_HOME, custom default param, env priority over custom default, returns Path
+- `run_agent.py` pure helpers: extended `tests/test_run_agent_pure_helpers.py` (+21 tests)
+  - `_sanitize_surrogates()`: plain text unchanged (same-object return), lone surrogates → U+FFFD, multiple replacements
+  - `_sanitize_messages_surrogates()`: empty→False, no surrogates→False, string content replaced in-place, list content text replaced, non-dict msgs skipped, mutates in-place
+  - `_strip_budget_warnings_from_history()`: non-tool msgs untouched, JSON `_budget_warning` key removed, plain text [BUDGET…] pattern stripped, clean messages preserved
+- 8855/8855 pass (+45 net new from Scout 86)
+
+**Files changed:**
+- `tests/tools/test_web_tools_env_helpers.py`: new file, 6 tests
+- `tests/test_hermes_constants.py`: new file, 19 tests
+- `tests/test_run_agent_pure_helpers.py`: extended, +21 tests (53 total)
+
+**Commit:** ef85d6fc — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 81 — Broader exploratory scan: web_tools + smart_model_routing + litert + copilot_acp helpers (2026-04-20T~ongoing)
 
 **Duration:** ~30m
