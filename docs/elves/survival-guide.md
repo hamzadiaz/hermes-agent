@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 88 complete. Scout 89 next.
+Reason: Open-ended mode active. Scout 89 complete. Scout 90 next.
 ```
 
 ## Current Phase
-SCOUT 88 COMPLETE — anthropic_adapter(+24)+auxiliary_client(+13)+feishu(+18)=55 tests; 9015/9015 pass. Scout 89 next.
+SCOUT 89 COMPLETE — gateway/run(+22)+feishu(+39)=61 tests; 9076/9076 pass. Scout 90 next.
 
 ## Next Exact Batch
-Scout 89: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 90: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -114,7 +114,8 @@ Scout 89: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 86** ✅ hermes_constants(19)+web_tools_env(6)+run_agent_pure(+21)=46 tests; 8855/8855 pass
 - **Scout 87** ✅ gateway_run(26)+gateway_config(26)+model_metadata_url(53)=105 tests; 8961/8961 pass
 - **Scout 88** ✅ anthropic_adapter(+24)+auxiliary_client(+13)+feishu(+18)=55 tests; 9015/9015 pass
-- **Scout 89** 🔄 Continue broader exploratory scan
+- **Scout 89** ✅ gateway/run(+22)+feishu(+39)=61 tests; 9076/9076 pass
+- **Scout 90** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

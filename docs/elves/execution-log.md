@@ -4,6 +4,32 @@
 
 ---
 
+## Scout 89 — Broader exploratory scan: gateway/run text helpers + feishu text/node helpers (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `gateway/run.py`: extended `tests/gateway/test_run_pure_helpers.py` (+22 tests, 48 total)
+  - `_normalize_gateway_text()`: None/str/dict(text/content/fallback-json)/list(strings/text-dicts/mixed)/int
+  - `_normalize_whatsapp_identifier()`: JID @-stripped, + stripped, :N stripped, LID syntax, None/empty/whitespace
+- `gateway/platforms/feishu.py`: extended `tests/gateway/test_feishu_pure_helpers.py` (+39 tests, 116 total)
+  - `_normalize_feishu_text()`: whitespace/mention-placeholder/CRLF/multispace normalization
+  - `_unique_lines()`: dedup preserving order, empty strings excluded
+  - `_attachment_placeholder()`: named/empty/whitespace-only/spaces-in-name
+  - `_find_header_title()`: non-dict/missing-header/non-dict-header/content-key/text-key/direct-string/None title
+  - `_first_non_empty_text()`: first non-empty wins, dicts/lists/whitespace-only skipped
+  - `_walk_nodes()`: empty-dict, flat, nested-dict, list-of-dicts, scalars-yield-nothing, nested-list-in-dict
+- 9076/9076 pass (+61 net new from Scout 89)
+
+**Files changed:**
+- `tests/gateway/test_run_pure_helpers.py`: extended, +22 tests (48 total)
+- `tests/gateway/test_feishu_pure_helpers.py`: extended, +39 tests (116 total)
+
+**Commit:** 7003741e — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 88 — Broader exploratory scan: anthropic_adapter + auxiliary_client + feishu post payload (2026-04-20T~ongoing)
 
 **Duration:** ~20m
