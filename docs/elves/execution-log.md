@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 61 — Broader exploratory scan: DEFAULT_DB_PATH cleanup + image_generation tests (2026-04-20T~11:45Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Removed unused `DEFAULT_DB_PATH = get_hermes_home() / "state.db"` constant from `hermes_state.py` (line 33). It was evaluated at module import time (bad — Scout 39 root cause pattern), never referenced in code, and only mentioned in a comment in `acp_adapter/session.py`. Updated that comment to not reference the removed constant.
+- Added `tests/tools/test_image_generation_tool.py` with 36 tests covering:
+  - `_normalize_fal_queue_url_format()`: empty/None raises, trailing slash normalization, path preservation
+  - `_validate_parameters()`: 29 tests covering all 6 parameters, all valid/invalid branches for image_size (preset string, custom dict, wrong type, dimensions out of range), num_inference_steps, guidance_scale (coercion), num_images, output_format, acceleration
+  - `check_fal_api_key()`: with/without FAL_KEY env var
+- 7525/7525 pass (up from 7489).
+
+**Files changed:**
+- `hermes_state.py`: removed `DEFAULT_DB_PATH` constant
+- `acp_adapter/session.py`: updated comment to not reference removed constant
+- `tests/tools/test_image_generation_tool.py`: new file, 36 tests
+
+---
+
 ## Scout 60 — Broader exploratory scan: tool_backend_helpers tests (2026-04-20T~11:20Z)
 
 **Duration:** ~15m

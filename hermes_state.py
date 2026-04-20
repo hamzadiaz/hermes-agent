@@ -30,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-DEFAULT_DB_PATH = get_hermes_home() / "state.db"
-
 SCHEMA_VERSION = 6
 
 SCHEMA_SQL = """
