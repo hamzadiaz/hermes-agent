@@ -4,6 +4,34 @@
 
 ---
 
+## Scout 30 — session_search explicit config for all remaining agents (2026-04-20T08:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Fleet health monitor was stale (last entry 02:47 AM, 2hr gap) — kick-started via `launchctl kickstart`; now running
+- Cron: jobs.json shows 0 active jobs; cron.db is empty — expected, no registered jobs currently
+- Main gateway: only 2 warnings today: recursion depth warning (benign) + `unhandled auth_type external_process for claude-code` at 01:12 AM (single occurrence, returns None gracefully)
+- All agent gateways healthy (all polling Telegram at HTTP 200 as of 04:52 AM)
+- Historical errors confirmed: `gemini-3.1-flash` 404s were from April 19 15:00 (old gateway); current uses `gemini-3.1-flash-lite-preview` correctly
+- `gpt-5.2-codex not supported` errors were from April 16 (4 days ago, old gateway)
+- Extended Scout 29 work: added explicit `auxiliary.session_search` config to ALL remaining agents:
+  - alex, codex, malik (openai-codex) — added with base_url + api_key to force Google Gemini route
+  - buni, donch, claude (claude-code) — same, using existing Google Gemini API keys
+- Total: 9/10 agents now have explicit session_search config; mark had it from before
+- Test suite: **7425/7425 pass** ✅
+
+**Files changed (outside git repo — ~/.hermes-agents/):**
+- `~/.hermes-agents/alex/config.yaml` — added `auxiliary.session_search` with explicit base_url
+- `~/.hermes-agents/codex/config.yaml` — added `auxiliary.session_search` with explicit base_url
+- `~/.hermes-agents/malik/config.yaml` — added `auxiliary.session_search` with explicit base_url
+- `~/.hermes-agents/buni/config.yaml` — added `auxiliary.session_search` with explicit base_url
+- `~/.hermes-agents/donch/config.yaml` — added `auxiliary.session_search` with explicit base_url
+- `~/.hermes-agents/claude/config.yaml` — added `auxiliary.session_search` with explicit base_url
+
+---
+
 ## Scout 29 — Explicit session_search model for Google Gemini agents (2026-04-20T07:30Z)
 
 **Duration:** ~20m
