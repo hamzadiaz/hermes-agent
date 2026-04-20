@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 40 complete. Scout 41 next.
+Reason: Open-ended mode active. Scout 41 complete. Scout 42 next.
 ```
 
 ## Current Phase
-SCOUT 40 COMPLETE — broader hardening audit; session DB integrity confirmed on all 11 databases; fleet healthy; module-level HERMES_HOME pattern documented; 7426/7426 tests pass.
+SCOUT 41 COMPLETE — all 7 acceptance criteria audited; 5 code-verifiable criteria confirmed; vault Grade A; Fix A/B confirmed in place; remaining 2 criteria require live user testing.
 
 ## Next Exact Batch
-Scout 41: Deep acceptance criteria verification — review all 7 criteria, identify any remaining code-fixable gaps; look for any subtle routing or toolset bugs in agent configs
+Scout 42: Further hardening — audit Fix A/B regression tests for completeness, check for any edge cases in session_search inject logic, review cron scheduler behavior with empty jobs.json
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -66,7 +66,8 @@ Scout 41: Deep acceptance criteria verification — review all 7 criteria, ident
 - **Scout 38** ✅ Deep code audit: context_compressor, session_search, fleet health, mark/buni stable; no code changes
 - **Scout 39** ✅ Cron health: 108 test-artifact sessions found in prod state.db; root cause = module-level HERMES_HOME caching in SessionDB; fixed + regression test added; 7426/7426 pass
 - **Scout 40** ✅ Broader hardening: all 11 state.dbs healthy (schema 6, 0 orphaned); hermes-cli toolset correct; module-level HERMES_HOME pattern reviewed (cron/memory patched in tests; acp_adapter already dynamic); no new code bugs
-- **Scout 41** 🔄 Deep acceptance criteria verification
+- **Scout 41** ✅ Acceptance criteria audit: 5/7 criteria code-verified (no-AGENTS.md injection, recency-recall logic, toolsets+vault Grade A, Fix A+B in place); 2 require live user testing (Opus 4.7 continuity, model switching)
+- **Scout 42** 🔄 Further hardening: Fix A/B regression test audit, session_search edge cases
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

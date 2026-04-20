@@ -4,6 +4,45 @@
 
 ---
 
+## Scout 41 — Deep acceptance criteria audit (2026-04-20T~07:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Systematically audited all 7 final acceptance criteria against code evidence:
+
+1. **Fresh sessions no longer falsely claim missing tools** ✅
+   - Scout 26 fix confirmed: `run_agent.py:2825` uses `HERMES_HOME` not `os.getcwd()`
+   - Verified: no `AGENTS.md` in any of the 11 `HERMES_HOME` directories
+
+2. **Recency recall consistently prioritizes latest relevant issue** ✅
+   - `session_search_tool.py:347-381` inject-most-recent-session logic confirmed correct
+   - Current session excluded, delegation sessions excluded, limit trimming correct
+
+3. **Claude/Opus 4.7 behaves correctly** ⚠️ Requires live user testing — cannot verify without Telegram
+
+4. **Model switching via optijara.ai/models + Save + /new** ⚠️ Requires live user testing — cannot automate
+
+5. **Memory/session_search/skills/Obsidian/cron awareness correctly surfaced** ✅
+   - All toolsets confirmed: main hermes `platform_toolsets.cli` includes `session_search, memory, skills, cronjob`
+   - All agent configs have explicit flash-lite auxiliary configs for session_search/compression/flush_memories
+   - Vault: Grade A, score=0, issues=0 (fresh audit run 06:01)
+
+6. **Old stale sessions explicitly discarded from verification** ✅ (informational)
+   - Pre-Scout-36 sessions are historical. All new sessions use post-fix gateway.
+
+7. **Latest-upstream integration plan executed safely** ⚠️ Integration branch exists; human merge required (Non-Negotiable #1)
+
+- Fix A (session_id in cache signature at line 5383) ✅ confirmed in place
+- Fix B (auto-reset eviction at lines 2198-2204) ✅ confirmed in place
+- No code changes needed.
+
+**Files changed:**
+- None (verification only)
+
+---
+
 ## Scout 40 — Broader hardening audit (2026-04-20T~07:00Z)
 
 **Duration:** ~30m
