@@ -1656,3 +1656,23 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7727/7727 pass (+71 from Scout 66)
 
 **Commit:** 64649000 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 67 — 2026-04-20
+
+**Objective:** Coverage gaps — managed_tool_gateway pure helpers + runtime_provider pure helpers
+
+### Changes:
+- `tests/tools/test_managed_tool_gateway.py`: +16 tests added to existing file
+  - `TestParseTimestamp`: Z-suffix, UTC offset, naive→UTC, equivalence, normalization, None/empty/invalid
+  - `TestAccessTokenIsExpiring`: None/invalid/past/future/skew/negative-skew
+- `tests/hermes_cli/test_runtime_provider_helpers.py` (new, 29 tests):
+  - `_normalize_custom_provider_name()`: lowercase, space→hyphen, strip, empty
+  - `_detect_api_mode_for_url()`: OpenAI→codex_responses, OpenRouter/local/Anthropic→None, case-insensitive
+  - `_parse_api_mode()`: all 3 valid modes, uppercase normalization, whitespace, None/non-str/invalid
+  - `format_runtime_provider_error()`: AuthError delegation, plain exception, no-special-code AuthError
+
+**Results:** 7772/7772 pass (+45 from Scout 67)
+
+**Commit:** aab6bea0 — pushed to fork (hamzadiaz/hermes-agent)
