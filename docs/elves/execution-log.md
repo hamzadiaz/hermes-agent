@@ -4,6 +4,34 @@
 
 ---
 
+## Scout 88 — Broader exploratory scan: anthropic_adapter + auxiliary_client + feishu post payload (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `agent/anthropic_adapter.py`: extended `tests/agent/test_anthropic_adapter_pure_helpers.py` (+24 tests)
+  - `_image_source_from_openai_url()`: URL type, data:// base64 extraction, MIME detection, empty/None
+  - `_convert_content_part_to_anthropic()`: None→None, str→text block, non-dict coercion, input_text/image_url types, cache_control propagation, unknown type passthrough
+  - `_convert_content_to_anthropic()`: non-list passthrough, empty, string parts converted, None parts excluded
+  - `_generate_pkce()`: url-safe base64 format, uniqueness per call, SHA-256 S256 derivation verified
+- `agent/auxiliary_client.py`: extended `tests/agent/test_auxiliary_client_helpers.py` (+13 tests)
+  - `_convert_content_for_responses()`: text→input_text, image_url→input_image, detail preserved, already-responses-format passthrough, unknown type with text fallback, non-dict items excluded, mixed content
+- `gateway/platforms/feishu.py`: extended `tests/gateway/test_feishu_pure_helpers.py` (+18 tests)
+  - `_to_post_payload()`: content list required, missing/non-list→{}, title defaults to ""
+  - `_resolve_locale_payload()`: direct/en_us/zh_cn/any-nested locale, non-dict→{}
+  - `_resolve_post_payload()`: direct/post-wrapped/top-level locale resolution
+- 9015/9015 pass (+54 net new from Scout 88)
+
+**Files changed:**
+- `tests/agent/test_anthropic_adapter_pure_helpers.py`: extended, +24 tests (94 total)
+- `tests/agent/test_auxiliary_client_helpers.py`: extended, +13 tests (41 total)
+- `tests/gateway/test_feishu_pure_helpers.py`: extended, +18 tests (77 total)
+
+**Commit:** e9cd07fe — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 87 — Broader exploratory scan: gateway_run + gateway_config + model_metadata_url helpers (2026-04-20T~ongoing)
 
 **Duration:** ~25m
