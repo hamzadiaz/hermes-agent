@@ -4,6 +4,30 @@
 
 ---
 
+## Scout 50 — Test coverage gaps: Scout 33 regression test (2026-04-20T~12:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited test coverage for all 5 critical fixes. Found Scout 33 had no dedicated regression test.
+- Added `test_external_process_providers_return_none_without_warning` parametrized test:
+  - Covers all 3 external_process providers: `claude-code`, `litert-lm`, `copilot-acp`
+  - Verifies `(None, None)` return with no WARNING-level logs
+  - Uses `caplog` to ensure no accidental WARNING re-introduction
+- All other test coverage confirmed adequate:
+  - hermes_state.py: 135 tests (Scout 39 regression at line 1301)
+  - cron/: 87+4 skip, test_cronjob_tools.py: 39 (Scout 39 contamination fix covered)
+  - auxiliary_client: 83 tests (Scout 33 now covered)
+  - session_search: 30 tests (recency injection covered)
+  - toolsets: 27 tests (all public functions covered)
+- 7440/7440 pass.
+
+**Files changed:**
+- `tests/agent/test_auxiliary_client.py` — 3 new parametrized tests in `TestExplicitProviderRouting`
+
+---
+
 ## Scout 49 — Gateway run.py flush_memories + prompt builder tool-list accuracy (2026-04-20T~12:00Z)
 
 **Duration:** ~25m

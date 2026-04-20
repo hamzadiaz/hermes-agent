@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 49 complete. Scout 50 next.
+Reason: Open-ended mode active. Scout 50 complete. Scout 51 next.
 ```
 
 ## Current Phase
-SCOUT 49 COMPLETE — All 5 critical code fixes verified in place; flush_memories dual-path correct; prompt builder tool-list accurate (gated on valid_tool_names); MCP isolation intact; 7437/7437 pass.
+SCOUT 50 COMPLETE — All 5 critical fixes now have regression tests (Scout 33 was last missing); 7440/7440 pass.
 
 ## Next Exact Batch
-Scout 50: Explore remaining test coverage gaps across core modules (hermes_state, cron scheduler, auxiliary_client); look for any untested edge cases in the 5 critical fixes
+Scout 51: Review skills hub accuracy + check if any new test patterns from Scouts 46-50 should be promoted to learnings.md
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -75,7 +75,8 @@ Scout 50: Explore remaining test coverage gaps across core modules (hermes_state
 - **Scout 47** ✅ Fleet ok=True; 10/10 configs clean; FTS 18323/18323; vault Grade A; 7 new toolset tests; 7433/7433 pass
 - **Scout 48** ✅ session_search_tool.py audited; recency injection correct; 4 new recent-mode tests; 7437/7437 pass
 - **Scout 49** ✅ All 5 fixes verified; flush_memories dual-path correct; MCP isolation intact; prompt builder tool-list accurate; 7437/7437
-- **Scout 50** 🔄 Test coverage gaps: hermes_state, cron scheduler, auxiliary_client edge cases
+- **Scout 50** ✅ Scout 33 regression test added (external_process providers); all 5 fixes now have tests; 7440/7440 pass
+- **Scout 51** 🔄 Skills hub accuracy + learnings.md update
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
