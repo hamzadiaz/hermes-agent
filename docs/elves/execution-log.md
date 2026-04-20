@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 74 — Broader exploratory scan: hermes_cli/setup.py pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- 7 pure helper functions in `hermes_cli/setup.py` had zero test coverage: `_model_config_dict`, `_set_model_provider`, `_set_default_model`, `_get_credential_pool_strategies`, `_set_credential_pool_strategy`, `_current_reasoning_effort`, `_set_reasoning_effort`
+- Added `tests/hermes_cli/test_setup_pure_helpers.py` with 40 tests covering:
+  - `_model_config_dict()`: dict returned as copy, string wrapped in {default:...}, whitespace-only → {}, None → {}, no key → {}
+  - `_set_model_provider()`: sets provider, base_url with trailing-slash strip, empty base_url removes key, preserves existing model keys, string model preserved
+  - `_set_default_model()`: sets default, empty name is no-op, preserves provider
+  - `_get_credential_pool_strategies()`: returns copy, missing/None/non-dict → {}, copy independence
+  - `_set_credential_pool_strategy()`: upsert, overwrites existing, preserves others, empty provider no-op
+  - `_current_reasoning_effort()`: extraction, lowercase normalization, whitespace strip, no-agent/non-dict/None/empty → ""
+  - `_set_reasoning_effort()`: creates agent section, overwrites, preserves other agent settings, invalid agent replaced
+- 8021/8021 net total (8020 pass under xdist; pre-existing flake)
+
+**Files changed:**
+- `tests/hermes_cli/test_setup_pure_helpers.py`: new file, 40 tests
+
+---
+
 ## Scout 73 — Broader exploratory scan: hermes_cli/config.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~15m
