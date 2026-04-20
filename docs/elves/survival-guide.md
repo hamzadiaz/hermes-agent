@@ -18,17 +18,17 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 19 complete. Scout 20 next (deeper audit, UI review).
+Reason: Open-ended mode active. Scout 20 complete. Scout 21 next (codebase hardening, edge case audit).
 ```
 
 ## Current Phase
-SCOUT 19 COMPLETE — 7140/7140 tests pass. All 8 fixes committed + pushed. System stable.
+SCOUT 20 COMPLETE — 7404/7404 tests pass. Gateway audit clean. UI improved. 11/11 agents running.
 
 ## Next Exact Batch
-Scout 20: Possible actions:
-- Deeper gateway code audit (check for other None-arg patterns, other dispatch callers)
-- Review atlas-dashboard for any remaining UI improvements
-- Look for issues in the Hermes Telegram response quality after MCP fix
+Scout 21: Possible actions:
+- Review MCP dynamic tool discovery cleanup (deregister + repave) for any edge cases
+- Audit `claude_code_client.py` streaming path for correctness after MCP fix
+- Look for any final acceptance criteria that can be auto-verified without user interaction
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -48,6 +48,7 @@ Scout 20: Possible actions:
 - **Scout 17** ✅ Stop robustness verified: npm + node process tree exits cleanly on SIGTERM; full start→stop→restart cycle clean; no code changes needed
 - **Scout 18** ✅ registry.dispatch None-args bug fixed: web_search (and any tool) no longer crashes when model emits tool call with null args
 - **Scout 19** ✅ Final xdist: 7140/7140 pass (0 fail, clean after all fixes)
+- **Scout 20** ✅ Gateway audit: no new None-arg patterns; UI: Open button dims when stopped; 7404/7404 tests pass
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

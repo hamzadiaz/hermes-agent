@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 20 — Gateway Audit + UI Polish (2026-04-20T02:10Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Deep gateway code audit: confirmed `registry.dispatch` None-arg fix is the only place needed
+  - `run_agent.py` already null-guards `function_args` at both call sites (lines 313-319, 5869-5870)
+  - Gateway doesn't call `dispatch()` directly — all tool calls go through `run_agent.py`
+- Gateway log review: no errors since 01:55 restart. Pre-existing issues confirmed:
+  - `gemini-3.1-flash` 404 (15:00 yesterday) — old model ID, config now uses `gemini-3.1-flash-lite-preview`, self-resolved
+  - `external_process` auth warning for `claude-code` — expected, falls back to auto detection gracefully
+  - Telegram fallback IPs — network connectivity, not code-fixable
+- atlas-dashboard UI: improved Open button — dims when preview is `stopped` (tooltip: "App is stopped — tunnel may return 503")
+- System check: 11/11 agents running (0 errors, 0 idle), `main` on claude-opus-4-7 ✅
+- Test suite: 7404 passed, 277 skipped, 0 failed (stable after UI change)
+- Obsidian checkpoint written: `scout-20` event logged
+
+**Result:** No new bugs found. One UI improvement shipped. All systems stable.
+
+---
+
 ## Scout 19 — Final Test Confirmation (2026-04-20T02:05Z)
 
 **Duration:** ~5m
