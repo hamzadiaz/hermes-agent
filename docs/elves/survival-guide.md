@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 38 complete. Scout 39 next.
+Reason: Open-ended mode active. Scout 39 complete. Scout 40 next.
 ```
 
 ## Current Phase
-SCOUT 38 COMPLETE — deep code audit; all routing verified correct; fleet healthy; 7425/7425 tests pass. System fully stable.
+SCOUT 39 COMPLETE — cron health investigated; SessionDB test isolation bug found and fixed; 7426/7426 tests pass.
 
 ## Next Exact Batch
-Scout 39: Additional hardening — check cron health, session DB integrity, toolset configs for simpler agents
+Scout 40: Broader hardening — audit remaining test isolation issues (other module-level HERMES_HOME caches), check agent toolset configs for minimal agents, session DB integrity review
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -64,7 +64,8 @@ Scout 39: Additional hardening — check cron health, session DB integrity, tool
 - **Scout 36** ✅ All 11 gateways restarted (Scout 33 fix active); vault Grade A; configs verified; session search recency code confirmed correct
 - **Scout 37** ✅ Acceptance criteria audit: all code-fixable items verified; routing confirmed correct for all 11 gateways; 7425/7425 pass
 - **Scout 38** ✅ Deep code audit: context_compressor, session_search, fleet health, mark/buni stable; no code changes
-- **Scout 39** 🔄 Hardening: cron health, session DB, toolset configs for minimal agents
+- **Scout 39** ✅ Cron health: 108 test-artifact sessions found in prod state.db; root cause = module-level HERMES_HOME caching in SessionDB; fixed + regression test added; 7426/7426 pass
+- **Scout 40** 🔄 Broader hardening: other module-level HERMES_HOME caches, minimal agent toolset configs, session DB integrity
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

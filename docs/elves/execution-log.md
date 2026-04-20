@@ -4,6 +4,30 @@
 
 ---
 
+## Scout 39 — Cron health + SessionDB test isolation fix (2026-04-20T~06:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Investigated 108 `cron_job-1` sessions in `~/.hermes/state.db` despite `jobs.json` being empty since April 16.
+- Root cause: `hermes_state.py:33` had `DEFAULT_DB_PATH = get_hermes_home() / "state.db"` as a **module-level constant** evaluated at import time. The test conftest redirects `HERMES_HOME` via monkeypatch **after** module import, so `SessionDB()` in `run_job()` still pointed to `~/.hermes/state.db`. Every test run of `test_cron_run_job_codex_path_handles_internal_401_refresh` created a real `cron_job-1_*` session record in production state.db (model=`gpt-5.3-codex`, from the test job fixture). No messages were stored (patched out), sessions completed in ~0.1s.
+- Conclusion: **No production cron jobs exist** (jobs.json is legitimately empty). The 108 sessions are all test artifacts.
+- Fix A: `hermes_state.py` — changed `SessionDB.__init__` to call `get_hermes_home() / "state.db"` dynamically instead of using the cached constant. Tests that redirect HERMES_HOME now get the correct temp path.
+- Fix B: `session_search_tool.py` — `check_session_search_requirements()` now calls `get_hermes_home().exists()` directly instead of importing `DEFAULT_DB_PATH`.
+- Regression test added: `test_hermes_state.py::test_sessiondb_no_args_uses_current_hermes_home` verifies SessionDB respects current env at instantiation.
+- Verified: full test run after fix created 0 new `cron_job-1` sessions in production state.db.
+
+**Files changed:**
+- `hermes_state.py` — SessionDB.__init__ dynamic HERMES_HOME resolution
+- `tools/session_search_tool.py` — check_session_search_requirements dynamic path
+- `tests/test_hermes_state.py` — regression test added
+- Committed: `0b1cd0a7`, pushed to fork
+
+**Tests:** 7426/7426 pass (1 new test added)
+
+---
+
 ## Scout 38 — Deep code audit + fleet health verification (2026-04-20T12:00Z)
 
 **Duration:** ~30m

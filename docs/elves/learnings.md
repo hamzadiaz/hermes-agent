@@ -232,3 +232,20 @@ _context_cwd = (
 **Key principle**: never use `os.getcwd()` as a fallback for config file discovery in a process that runs from a developer repo dir. Always use the user's config home or an explicit env var.
 
 **Fixed 2026-04-20 (Scout 26)**; all 11 gateways restarted to pick up the change.
+
+## L25: Module-level HERMES_HOME constants break test isolation — use get_hermes_home() at call time (2026-04-20)
+
+`hermes_state.py` had `DEFAULT_DB_PATH = get_hermes_home() / "state.db"` evaluated **at module import time**. The test conftest's `_isolate_hermes_home` fixture redirects `HERMES_HOME` via `monkeypatch.setenv()` *after* module import, so any module-level constant that calls `get_hermes_home()` is already fixed to `~/.hermes`.
+
+**Symptom**: Every test run of `test_cron_run_job_codex_path_handles_internal_401_refresh` wrote a real `cron_job-1_*` session record to `~/.hermes/state.db` (model=`gpt-5.3-codex`, 0 messages, duration ~0.1s). 108 such sessions accumulated over the April 19-20 overnight run.
+
+**Fix**: Change `SessionDB.__init__` to compute the path dynamically:
+```python
+self.db_path = db_path or (get_hermes_home() / "state.db")
+```
+
+**Rule**: Any code that instantiates resources tied to `HERMES_HOME` (databases, file stores, config readers) must call `get_hermes_home()` at instantiation/call time, not at module load time. Module-level constants are fine for display/logging but not for resource paths that tests need to redirect.
+
+**Detection**: If you see sessions with test-specific models (e.g., `gpt-5.3-codex`) in production state.db with 0 messages and ~0.1s duration, they are test artifact leakage — look for module-level `HERMES_HOME` caching.
+
+**Fixed 2026-04-20 (Scout 39)**, commit `0b1cd0a7`.
