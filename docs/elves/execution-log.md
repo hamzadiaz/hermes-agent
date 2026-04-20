@@ -4,6 +4,30 @@
 
 ---
 
+## Scout 47 — Fleet health, config drift check, toolset test improvements (2026-04-20T~11:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Fleet monitor: `ok=True` continuously since 20:17 UTC April 19. Zero alerts sent. All consistent.
+- All 10 agent configs verified: no drift — all have `gemini-3.1-flash-lite-preview` for session_search/compression/flush_memories.
+- Main hermes config verified: all auxiliary models correct.
+- Session_search FTS health: 18323/18323 messages indexed (100%).
+- Production DB: still 108 legacy cron_job-1 sessions (all pre-fix). Zero new ones after 04:00 UTC — fix confirmed holding.
+- Vault: Grade A confirmed at 06:14 (most recent audit). Nightly 00:10 audit shows D (stale contexts) but fresh audits show A throughout.
+- **Toolset test improvements**: Added 7 new tests (27→27 in file, 7426→7433 total):
+  - `TestGetToolsetNames`: 3 tests (type, known names, all names valid)
+  - `TestGetAllToolsets`: 4 tests (type, known, copy semantics, required keys)
+  - `test_hermes_messaging_platforms_share_core_tools`: expanded from 7 hardcoded to all 14 platforms
+  - Fixed: removed count-equality assertions that race with TestCreateCustomToolset's TOOLSETS mutation
+  - Fixed: `test_values_have_required_keys` only checks description+tools (plugin toolsets legitimately lack `includes`)
+
+**Files changed:**
+- `tests/test_toolsets.py` — 7 new tests, 1 test updated
+
+---
+
 ## Scout 46 — Final system stability check + error log analysis (2026-04-20T~10:30Z)
 
 **Duration:** ~25m
