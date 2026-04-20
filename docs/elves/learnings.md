@@ -31,7 +31,7 @@ Auto-reset (idle/daily) was not evicting cached AIAgent instances or shutting do
   - **Fix B**: `_shutdown_gateway_honcho` + `_evict_cached_agent` in `was_auto_reset` path (local lines 2198-2204 as of 2026-04-20)
     - In `_handle_message_with_agent`, the `if getattr(session_entry, 'was_auto_reset', False)` block must call both methods before running the agent
   - **Scout 26 fix**: `run_agent.py:2825` — context_cwd uses HERMES_HOME not os.getcwd()
-  - **Scout 33 fix**: `agent/auxiliary_client.py` — external_process provider logs at DEBUG not WARNING
+  - **Scout 33 fix**: `agent/auxiliary_client.py:1151-1157` — external_process provider logs at DEBUG not WARNING; regression test: `test_external_process_providers_return_none_without_warning` (parametrized, 3 providers)
   - **Scout 39 fix**: `hermes_state.py:140` — `SessionDB.__init__` calls `get_hermes_home()` dynamically
 - Integration branch `integration/upstream-merge-2026-04-19` created for safe merge work
 - Correct approach: apply upstream changes on integration branch, manually re-apply fixes, re-verify
@@ -255,3 +255,22 @@ self.db_path = db_path or (get_hermes_home() / "state.db")
 **Detection**: If you see sessions with test-specific models (e.g., `gpt-5.3-codex`) in production state.db with 0 messages and ~0.1s duration, they are test artifact leakage — look for module-level `HERMES_HOME` caching.
 
 **Fixed 2026-04-20 (Scout 39)**, commit `0b1cd0a7`.
+
+## L26: Active error log is errors.log (rotating), not gateway.error.log (legacy) (2026-04-20)
+
+After the Scout 36 gateway restart (around 05:21 local / 05:21 UTC), all `gateway.error.log` files (main + 10 agent gateways) stopped being written to. The active error log is now `~/.hermes/logs/errors.log` (with rotation: `errors.log` → `errors.log.1` → `errors.log.2`).
+
+**Implication for debugging**: Do NOT look at `gateway.error.log` to diagnose current production issues — it contains only historical errors from before the restart. Always look at `errors.log*` for current issues.
+
+**Scout 33 verification**: Confirmed `unhandled auth_type external_process` WARNING NOT in any `errors.log*` file after 01:13:57 restart. Only in `errors.log.2` at `01:12:40` (from the old gateway). Zero occurrences in `errors.log.1` (starts 01:40) or `errors.log` (active).
+
+## L27: Global TOOLSETS mutation in tests requires isolation-safe assertions (2026-04-20)
+
+`TestCreateCustomToolset` modifies the global `TOOLSETS` dict during tests (`TOOLSETS["_test_custom"] = ...`). Under xdist parallel execution, other tests that run concurrently may see TOOLSETS with an extra entry (41 instead of 40).
+
+**Pattern to avoid**: `assert len(get_toolset_names()) == len(TOOLSETS)` — fails under xdist when another test has temporarily modified TOOLSETS.
+
+**Pattern to use**: Semantic assertions that tolerate transient mutation:
+- `assert all(validate_toolset(n) for n in get_toolset_names())` — checks semantic validity, not count
+- `assert "known_toolset" in get_toolset_names()` — spot-checks, not count equality
+- `assert "description" in ts and "tools" in ts for ts in get_all_toolsets().values()` — structural validity ignores count
