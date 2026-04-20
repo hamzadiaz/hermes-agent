@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 49 — Gateway run.py flush_memories + prompt builder tool-list accuracy (2026-04-20T~12:00Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited `_flush_memories_for_session` (gateway/run.py:674-789): code correct. Two mechanisms confirmed:
+  1. **Inline flush** (run_agent.py:5592): uses `task="flush_memories"` → auxiliary flash-lite config → cheap model
+  2. **Session-end flush** (gateway/run.py:674): creates full AIAgent with memory/skills/obsidian toolsets → uses gateway main model
+- Verified prompt builder tool-list accuracy: system prompt guidance only injected when tools are in `valid_tool_names` (lines 2688-2695) — no false advertising possible.
+- Scout 26 fix (lines 2825-2829) confirmed: context_cwd uses TERMINAL_CWD → HERMES_HOME → None; AGENTS.md injection prevented.
+- claude_code_client.py MCP isolation (Scout 13/15): `--tools ""` + empty `--mcp-config` still in place at line 420-433.
+- Scout 16 temp MCP file cleanup: `_cleanup_mcp_tmp` called in all finally blocks.
+- Fix A (line 5383): `session_id or ""` in cache signature — confirmed.
+- Fix B (lines 2198-2204): `_shutdown_gateway_honcho` + `_evict_cached_agent` on auto-reset — confirmed.
+- No code changes needed. All checks passed.
+- 7437/7437 pass, 11/11 gateways running.
+
+**Files changed:** None — verification only.
+
+---
+
 ## Scout 48 — Recency recall audit + session_search_tool.py test improvements (2026-04-20T~11:30Z)
 
 **Duration:** ~30m

@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 48 complete. Scout 49 next.
+Reason: Open-ended mode active. Scout 49 complete. Scout 50 next.
 ```
 
 ## Current Phase
-SCOUT 48 COMPLETE — session_search_tool.py audited; recency injection confirmed correct; 4 new recent-mode tests added; 7437/7437 pass.
+SCOUT 49 COMPLETE — All 5 critical code fixes verified in place; flush_memories dual-path correct; prompt builder tool-list accurate (gated on valid_tool_names); MCP isolation intact; 7437/7437 pass.
 
 ## Next Exact Batch
-Scout 49: Gateway run.py audit — verify flush_memories path, prompt builder tool-list accuracy, and any remaining stale-session edge cases
+Scout 50: Explore remaining test coverage gaps across core modules (hermes_state, cron scheduler, auxiliary_client); look for any untested edge cases in the 5 critical fixes
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -74,7 +74,8 @@ Scout 49: Gateway run.py audit — verify flush_memories path, prompt builder to
 - **Scout 46** ✅ Scout 33 fix confirmed in prod (0 external_process WARNINGs post-restart); error log architecture: gateway.error.log=legacy, active=errors.log*; 7426/7426 pass
 - **Scout 47** ✅ Fleet ok=True; 10/10 configs clean; FTS 18323/18323; vault Grade A; 7 new toolset tests; 7433/7433 pass
 - **Scout 48** ✅ session_search_tool.py audited; recency injection correct; 4 new recent-mode tests; 7437/7437 pass
-- **Scout 49** 🔄 Gateway run.py flush_memories path + prompt builder tool-list accuracy
+- **Scout 49** ✅ All 5 fixes verified; flush_memories dual-path correct; MCP isolation intact; prompt builder tool-list accurate; 7437/7437
+- **Scout 50** 🔄 Test coverage gaps: hermes_state, cron scheduler, auxiliary_client edge cases
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
