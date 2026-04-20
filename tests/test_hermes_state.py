@@ -1297,3 +1297,24 @@ class TestConcurrentWriteSafety:
         assert "30" in src, (
             "SQLite timeout should be at least 30s to handle CLI/gateway lock contention"
         )
+
+    def test_sessiondb_no_args_uses_current_hermes_home(self, tmp_path, monkeypatch):
+        """SessionDB() with no args must resolve HERMES_HOME at call time, not import time.
+
+        This guards against test isolation regressions: if SessionDB cached the
+        db_path at module import time (before monkeypatch redirects HERMES_HOME),
+        tests would silently write sessions into the real ~/.hermes/state.db.
+        """
+        fake_home = tmp_path / "hermes_isolated"
+        fake_home.mkdir()
+        monkeypatch.setenv("HERMES_HOME", str(fake_home))
+
+        from hermes_state import SessionDB
+        db = SessionDB()
+        try:
+            assert db.db_path == fake_home / "state.db", (
+                "SessionDB() must use HERMES_HOME from the current environment, "
+                "not the module-level constant cached at import time"
+            )
+        finally:
+            db.close()
