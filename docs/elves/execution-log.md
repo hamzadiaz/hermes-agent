@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 60 — Broader exploratory scan: tool_backend_helpers tests (2026-04-20T~11:20Z)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- `tool_backend_helpers.py` (89 lines, 5 pure-logic functions) had no direct unit tests
+- Added `tests/tools/test_tool_backend_helpers.py` with 23 tests covering:
+  - `normalize_browser_cloud_provider()`: None/empty default, case normalization
+  - `coerce_modal_mode()`: None/invalid/valid/case-insensitive
+  - `resolve_modal_backend_state()`: 10 tests covering all branches (auto fallback to direct, managed blocked, managed not ready, no backend available, invalid mode coercion)
+  - `resolve_openai_audio_api_key()`: voice key priority, openai fallback, empty, strip whitespace
+- 7489/7489 pass (up from 7466).
+
+**Files changed:**
+- `tests/tools/test_tool_backend_helpers.py`: new file, 23 tests
+
+---
+
 ## Scout 59 — Broader exploratory scan: obsidian_tool tests (2026-04-20T~11:00Z)
 
 **Duration:** ~20m
