@@ -4,6 +4,30 @@
 
 ---
 
+## Scout 64 — Broader exploratory scan: auth.py pure helper tests (2026-04-20T~12:55Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- 9 pure helper functions in `hermes_cli/auth.py` had zero test coverage
+- Added `tests/hermes_cli/test_auth_pure_helpers.py` with 59 tests covering:
+  - `has_usable_secret()`: valid key, non-string, empty, min_length, all placeholder values, case insensitivity
+  - `_parse_iso_timestamp()`: None/empty/invalid, Z suffix, offset, Z≡+00:00 equivalence, naive datetime as UTC
+  - `_is_expiring()`: None/invalid → expiring, past→expiring, future→not expiring, skew effect
+  - `_coerce_ttl_seconds()`: int, string int, float truncation, None→0, invalid→0, negative→0
+  - `_optional_base_url()`: None/non-str/empty→None, trailing slash strip, valid URL
+  - `_decode_jwt_claims()`: non-string/one-dot/invalid-b64→{}, valid JWT round-trip
+  - `_resolve_kimi_base_url()`: env override wins, sk-kimi- → coding URL, regular key → default
+  - `format_auth_error()`: non-AuthError str, relogin_required, all error codes
+  - `_token_fingerprint()`: non-string/empty→None, 12-char hex, deterministic, collision-free
+- 7624/7624 pass (up from 7565).
+
+**Files changed:**
+- `tests/hermes_cli/test_auth_pure_helpers.py`: new file, 59 tests
+
+---
+
 ## Scout 63 — Broader exploratory scan: model_switch.py tests (2026-04-20T~12:30Z)
 
 **Duration:** ~20m
