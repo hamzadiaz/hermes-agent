@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 27 — Subsystem audit + historical error log analysis (2026-04-20T06:10Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Added learnings L22 (test mock misuse → ERROR log pollution) and L23 (AGENTS.md poisoning via WorkingDirectory + HERMES_HOME fix) to `docs/elves/learnings.md`; committed + pushed to fork
+- Audited `gateway.error.log` (5630 lines): all `gemini-3.1-flash` 404 errors and `unhandled auth_type external_process for claude-code` warnings are from the OLD gateway run (before 4:14 AM restart). Current gateway (PID 12129, started 4:14 AM) has no errors in its log.
+- Verified main config (`~/.hermes/config.yaml`) has correct `auxiliary.session_search.model: gemini-3.1-flash-lite-preview` with proper Google OpenAI-compatible endpoint
+- Verified all agent HERMES_HOME dirs (`~/.hermes-agents/*/`) are clean — no AGENTS.md, CLAUDE.md, or HERMES.md files in any agent home. HERMES_HOME fallback in `run_agent.py` will correctly find nothing.
+- Verified Session DB: accessible, FTS5 search working, 5+ recent sessions
+- Verified Obsidian vault: write checkpoint returned `{"success": true}`
+- Cron subsystem: `jobs.json` is empty (no jobs configured by user) — normal state
+- Test suite spot check: 46/46 pass on key test files
+- `claude_code_client.py` tool injection path verified: `_format_messages_as_prompt` with `tool_mode=True` correctly injects Hermes tool schemas from `<tools>` XML and explicitly tells Claude Code to ignore its own built-in tools
+
+**New insight**: Agent gateways (claude, codex) that lack explicit `auxiliary.session_search` config fall back to auto-detection. Without OpenRouter/Nous/Codex credentials in the agent HERMES_HOME, session summarization is silently skipped — search results are still returned (without LLM summaries). Not a blocker; results degrade gracefully.
+
+**No code changes needed.** All identified issues are either fixed or require live Telegram testing by the user.
+
+---
+
 ## Scout 26 — Repo AGENTS.md poisoning production sessions (2026-04-20T05:30Z)
 
 **Duration:** ~20m

@@ -18,17 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 26 complete. Scout 27 next.
+Reason: Open-ended mode active. Scout 27 complete. Scout 28 next.
 ```
 
 ## Current Phase
-SCOUT 26 COMPLETE — Repo AGENTS.md was being loaded into ALL production sessions, falsely advertising "terminal, read_file, write_file" tools that aren't available in claude_code_client path. Fixed in run_agent.py: HERMES_HOME fallback prevents dev AGENTS.md from polluting system prompts. 7422/7422 pass.
+SCOUT 27 COMPLETE — Learnings L22+L23 committed. Historical error log analyzed (all errors from old gateway run). All static acceptance criteria verified. Remaining criteria require live Telegram testing by user.
 
 ## Next Exact Batch
-Scout 27: Possible actions:
-- Audit remaining acceptance criteria
-- Check for any other production issues
-- Look for other stability improvements
+Scout 28: Look for deeper production improvements, agent-specific auxiliary config propagation, or explore upstream changes for anything that fixes known issues
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -55,6 +52,8 @@ Scout 27: Possible actions:
 - **Scout 24** ✅ Gateway architecture audited: 1 main + 10 agent gateways; gemini-3.1-flash 404s are historical; all processes healthy
 - **Scout 25** ✅ `'object' object no attr list_sessions_rich` ERROR noise fixed: test mock misuse (object() → None); 7422/7422 pass
 - **Scout 26** ✅ Repo AGENTS.md poisoning system prompts: run_agent.py now falls back to HERMES_HOME not os.getcwd(); prevents false tool advertising in claude_code_client sessions
+- **Scout 27** ✅ Learnings L22+L23 committed; historical errors confirmed old-gateway-only; all static criteria verified; no new code changes needed
+- **Scout 28** 🔄 Agent auxiliary config audit in progress
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
