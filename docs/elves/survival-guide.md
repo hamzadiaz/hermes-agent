@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 36 complete. Scout 37 next.
+Reason: Open-ended mode active. Scout 37 complete. Scout 38 next.
 ```
 
 ## Current Phase
-SCOUT 36 COMPLETE — all 11 gateways restarted; Scout 33 fix active; vault Grade A; configs verified; 7425/7425 tests pass.
+SCOUT 37 COMPLETE — acceptance criteria audit complete; all code-fixable items verified deployed; 7425/7425 tests pass. Live testing (Claude/Opus 4.7, model switching) needs user.
 
 ## Next Exact Batch
-Scout 37: Code-level improvements — session search recency improvements, remaining error pattern investigation
+Scout 38: Deeper systemic improvements — investigate remaining issues, upstream diff review
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -62,7 +62,8 @@ Scout 37: Code-level improvements — session search recency improvements, remai
 - **Scout 34** ✅ Systemic audit: skills_hub fine (no changes), vault Grade A confirmed, no new error patterns
 - **Scout 35** ✅ mark auxiliary config fixed (flash-lite for session_search/compression/flush_memories); L24 added; 7425/7425 pass
 - **Scout 36** ✅ All 11 gateways restarted (Scout 33 fix active); vault Grade A; configs verified; session search recency code confirmed correct
-- **Scout 37** 🔄 Code-level improvements: session search, error patterns
+- **Scout 37** ✅ Acceptance criteria audit: all code-fixable items verified; routing confirmed correct for all 11 gateways; 7425/7425 pass
+- **Scout 38** 🔄 Deeper improvements: upstream diff review, remaining issues
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

@@ -4,6 +4,29 @@
 
 ---
 
+## Scout 37 — Final acceptance criteria audit (2026-04-20T11:30Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Verified Scout 26 HERMES_HOME fix: no AGENTS.md in any HERMES_HOME dir → context injection returns nothing for all 11 gateways. "Falsely claim missing tools" issue resolved ✓
+- Confirmed `_resolve_task_provider_model` routing is correct for all agent types:
+  - Gemini agents (adonch/musa/redwan with empty base_url): `_try_custom_endpoint` finds google-gemini, explicit `model:` overrides → flash-lite used ✓
+  - claude-code agents (claude/donch/buni): explicit base_url bypasses `_resolve_auto()` entirely → deterministic Gemini routing ✓
+  - Codex agent: different api_key but same explicit pattern ✓
+- Verified Scout 33 fix: `external_process` branch at line 1151 in auxiliary_client.py → DEBUG not WARNING ✓
+- Confirmed vault folders exist for 6 agents (Alex, Boone, Hermes-Core, Malik, Marketing, Musa); other 5 agents (adonch/claude/codex/donch/redwan) don't have vault folders — they fail gracefully with error JSON, use MEMORY.md instead ✓
+- Confirmed obsidian_tool.py correctly handles `_get_vault_agent_name()` returning None for unmapped agents ✓
+- Empty content WARNINGs (session search) confirmed as normal retry-loop behavior ✓
+- Remaining acceptance criteria (live Claude/Opus 4.7 testing, model switching test) require user to test via Telegram ✓
+- 7425/7425 tests pass ✓
+
+**Files changed:**
+- None (audit and verification only)
+
+---
+
 ## Scout 36 — Full gateway restart + config verification (2026-04-20T10:55Z)
 
 **Duration:** ~30m
