@@ -471,6 +471,22 @@ class TestExplicitProviderRouting:
         client, model = resolve_provider_client("nonexistent-provider")
         assert client is None
 
+    @pytest.mark.parametrize("provider", ["claude-code", "litert-lm", "copilot-acp"])
+    def test_external_process_providers_return_none_without_warning(self, provider, caplog):
+        """external_process providers (claude-code, litert-lm, copilot-acp) cannot serve
+        as auxiliary API clients. They should return (None, None) at DEBUG level, not WARNING.
+        Regression test for Scout 33 fix: unhandled auth_type external_process for claude-code."""
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="agent.auxiliary_client"):
+            client, model = resolve_provider_client(provider)
+        assert client is None
+        assert model is None
+        # Must NOT emit a WARNING — only DEBUG is acceptable for expected cases
+        warning_msgs = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not any(provider in m for m in warning_msgs), (
+            f"Unexpected WARNING for external_process provider {provider!r}: {warning_msgs}"
+        )
+
 
 class TestGetTextAuxiliaryClient:
     """Test the full resolution chain for get_text_auxiliary_client."""
