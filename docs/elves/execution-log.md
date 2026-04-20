@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 48 — Recency recall audit + session_search_tool.py test improvements (2026-04-20T~11:30Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- Read all 553 lines of `tools/session_search_tool.py` in full. No critical bugs found.
+- Confirmed recency injection logic (lines 347-381) is correct and well-tested by existing `test_most_recent_session_injected_when_absent_from_keyword_results`.
+- Identified minor pre-existing issue in `_list_recent_sessions` line 211: `max(visited, key=len)` picks root by string length (arbitrary). Does NOT affect keyword search path (acceptance criterion #2). Left as-is — out of scope and risk of regression > benefit.
+- The `check_session_search_requirements` fix (Scout 39) is in place at lines 481-487.
+- Added 4 new tests for `_list_recent_sessions` (empty-query/recent mode) — previously only the `db=None` error path was tested:
+  - `test_empty_query_returns_recent_mode` — basic happy path
+  - `test_whitespace_query_returns_recent_mode` — whitespace also triggers recent mode
+  - `test_recent_mode_excludes_current_session` — current session filtered
+  - `test_recent_mode_excludes_child_sessions` — child/delegation sessions filtered
+- 7437/7437 pass.
+
+**Files changed:**
+- `tests/tools/test_session_search.py` — 4 new tests in `TestRecentSessionsMode`
+
+---
+
 ## Scout 47 — Fleet health, config drift check, toolset test improvements (2026-04-20T~11:00Z)
 
 **Duration:** ~30m
