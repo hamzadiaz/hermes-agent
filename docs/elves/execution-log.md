@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 57 — Broader exploratory scan: recency injection edge-case tests (2026-04-20T~10:00Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited `session_search_tool.py` recency injection code (lines 347-383) for test coverage gaps
+- Found 3 execution paths with no test coverage:
+  1. Most-recent session IS the current session → should skip it and inject the 2nd-most-recent
+  2. `list_sessions_rich()` raises an exception → silent failure, keyword results still returned
+  3. All `list_sessions_rich()` results are child sessions → injection loop exits without injecting
+- Added 3 new tests to `tests/tools/test_session_search.py::TestSessionSearch`:
+  - `test_recency_injection_skips_current_session_uses_next_most_recent`
+  - `test_recency_injection_silently_skips_on_list_sessions_rich_error`
+  - `test_recency_injection_skipped_when_all_candidates_are_children`
+- All 33 tests in test_session_search.py pass; 7443/7443 full suite pass (up from 7440).
+
+**Files changed:**
+- `tests/tools/test_session_search.py`: +3 recency injection edge-case tests
+
+---
+
 ## Scout 56 — Final acceptance criteria audit (2026-04-20T~09:45Z)
 
 **Duration:** ~20m

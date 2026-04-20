@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 56 complete. Scout 57 next.
+Reason: Open-ended mode active. Scout 57 complete. Scout 58 next.
 ```
 
 ## Current Phase
-SCOUT 56 COMPLETE — Final acceptance criteria audit: 3/7 code-verified (tool advertising, recency recall, memory/skills/config), 2/7 require live user testing (Opus 4.7 continuity, model switching), 2/7 require human action (stale sessions/upstream merge). 7440/7440 pass.
+SCOUT 57 COMPLETE — 3 recency injection edge-case tests added (current-session skip, exception silent-fail, all-children skip). 7443/7443 pass. Scout 58 next: broader exploratory scan continues.
 
 ## Next Exact Batch
-Scout 57: Broader exploratory scan — look for any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 58: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -82,7 +82,8 @@ Scout 57: Broader exploratory scan — look for any remaining bugs, coverage gap
 - **Scout 54** ✅ Fix B correct; flush_memories dual-path verified; 30/30 auto-reset tests pass
 - **Scout 55** ✅ Pre-existing xdist contamination root-cause found and fixed; 83/83 test_auxiliary_client.py; 7440/7440 full suite
 - **Scout 56** ✅ Acceptance criteria audit: 3/7 code-verified; 2/7 need live test; 2/7 need human action; 7440/7440
-- **Scout 57** 🔄 Broader exploratory scan — remaining bugs, coverage gaps, quality improvements
+- **Scout 57** ✅ 3 recency injection edge-case tests added; 7443/7443 pass
+- **Scout 58** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

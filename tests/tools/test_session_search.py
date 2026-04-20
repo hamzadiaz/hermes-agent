@@ -343,6 +343,145 @@ class TestSessionSearch:
         assert result["results"] == []
         assert result["sessions_searched"] == 0
 
+    def test_recency_injection_skips_current_session_uses_next_most_recent(self):
+        """If the most recent session IS the current session, inject the next-most-recent instead."""
+        from unittest.mock import MagicMock, AsyncMock, patch as _patch
+        from tools.session_search_tool import session_search
+
+        mock_db = MagicMock()
+        current_sid = "20260304_120000_current"
+        second_recent_sid = "20260304_110000_second"
+        keyword_match_sid = "20260303_100000_keyword"
+
+        mock_db.search_messages.return_value = [
+            {"session_id": keyword_match_sid, "content": "agent gateway",
+             "source": "telegram", "session_started": 1709400000, "model": "test"},
+        ]
+
+        def _get_session(sid):
+            return {"parent_session_id": None}
+
+        mock_db.get_session.side_effect = _get_session
+        mock_db.get_messages_as_conversation.return_value = [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi"},
+        ]
+
+        # list_sessions_rich: current session is first (most recent), second_recent next
+        mock_db.list_sessions_rich.return_value = [
+            {"id": current_sid, "source": "telegram",
+             "started_at": 1709503600, "model": "test", "parent_session_id": None},
+            {"id": second_recent_sid, "source": "telegram",
+             "started_at": 1709500000, "model": "test", "parent_session_id": None},
+            {"id": keyword_match_sid, "source": "telegram",
+             "started_at": 1709400000, "model": "test", "parent_session_id": None},
+        ]
+
+        with _patch("tools.session_search_tool.async_call_llm",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("no provider")):
+            result = json.loads(session_search(
+                query="agent gateway",
+                db=mock_db,
+                current_session_id=current_sid,
+                limit=3,
+            ))
+
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        # Current session must NOT appear
+        assert current_sid not in session_ids
+        # Second-most-recent must be injected (most recent non-current)
+        assert second_recent_sid in session_ids
+        assert session_ids[0] == second_recent_sid
+
+    def test_recency_injection_silently_skips_on_list_sessions_rich_error(self):
+        """If list_sessions_rich raises, recency injection fails silently and keyword results are returned."""
+        from unittest.mock import MagicMock, AsyncMock, patch as _patch
+        from tools.session_search_tool import session_search
+
+        mock_db = MagicMock()
+        current_sid = "20260304_120000_current"
+        keyword_match_sid = "20260303_100000_keyword"
+
+        mock_db.search_messages.return_value = [
+            {"session_id": keyword_match_sid, "content": "match",
+             "source": "telegram", "session_started": 1709400000, "model": "test"},
+        ]
+
+        def _get_session(sid):
+            return {"parent_session_id": None}
+
+        mock_db.get_session.side_effect = _get_session
+        mock_db.get_messages_as_conversation.return_value = [
+            {"role": "user", "content": "hello"},
+        ]
+        mock_db.list_sessions_rich.side_effect = RuntimeError("db locked")
+
+        with _patch("tools.session_search_tool.async_call_llm",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("no provider")):
+            result = json.loads(session_search(
+                query="match",
+                db=mock_db,
+                current_session_id=current_sid,
+                limit=3,
+            ))
+
+        # Keyword results should still be returned despite injection failure
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        assert keyword_match_sid in session_ids
+
+    def test_recency_injection_skipped_when_all_candidates_are_children(self):
+        """If all non-current sessions are children, no session is injected into keyword results."""
+        from unittest.mock import MagicMock, AsyncMock, patch as _patch
+        from tools.session_search_tool import session_search
+
+        mock_db = MagicMock()
+        current_sid = "20260304_120000_current"
+        keyword_match_sid = "20260303_100000_keyword"
+        child_sid = "20260304_115900_child"
+        parent_of_child = "20260304_100000_parent"
+
+        mock_db.search_messages.return_value = [
+            {"session_id": keyword_match_sid, "content": "match",
+             "source": "telegram", "session_started": 1709400000, "model": "test"},
+        ]
+
+        def _get_session(sid):
+            if sid == child_sid:
+                return {"parent_session_id": parent_of_child}
+            return {"parent_session_id": None}
+
+        mock_db.get_session.side_effect = _get_session
+        mock_db.get_messages_as_conversation.return_value = [
+            {"role": "user", "content": "hello"},
+        ]
+
+        # list_sessions_rich returns only child sessions (all have parent_session_id set)
+        mock_db.list_sessions_rich.return_value = [
+            {"id": child_sid, "source": "telegram",
+             "started_at": 1709503500, "model": "test", "parent_session_id": parent_of_child},
+        ]
+
+        with _patch("tools.session_search_tool.async_call_llm",
+                    new_callable=AsyncMock,
+                    side_effect=RuntimeError("no provider")):
+            result = json.loads(session_search(
+                query="match",
+                db=mock_db,
+                current_session_id=current_sid,
+                limit=3,
+            ))
+
+        # child_sid should not be injected
+        assert result["success"] is True
+        session_ids = [r["session_id"] for r in result["results"]]
+        assert child_sid not in session_ids
+        # Only the keyword match appears
+        assert keyword_match_sid in session_ids
+
 
 class TestRecentSessionsMode:
     """Tests for the empty-query (recent sessions) path via _list_recent_sessions."""
