@@ -176,6 +176,43 @@ Downstream symptom: `test_managed_media_gateways.py` tests that expect no `OPENA
 
 **Affected file**: `tests/tools/test_session_search.py` — `test_empty_query_no_db_returns_error` and `test_whitespace_query_no_db_returns_error` were using `object()`. Fixed 2026-04-20 (Scout 25).
 
+## L24: Auxiliary config must be explicit for all 3 core tasks: session_search, compression, flush_memories (2026-04-20)
+
+Every agent config needs explicit `auxiliary.session_search`, `auxiliary.compression`, and `auxiliary.flush_memories` sections with matching `model`, `base_url`, and `api_key` values. Without explicit config:
+
+- `provider: auto` routes via `_resolve_auto()` which tries `_try_custom_endpoint` and uses `_read_main_model()` as the model override — sending the pro/expensive model (e.g., `gemini-3.1-pro-preview`) to compression calls instead of the intended flash-lite model.
+- For agents that use OpenAI-codex as primary, auto-detect may route to Codex, which will reject any passed Gemini model name (returns 404 or unsupported model error).
+- For claude-code / litert-lm agents, `resolve_provider_client` short-circuits for `external_process` auth_type, silently returning `(None, None)` — leading to silent failure until logs are checked.
+
+**Standard template for Gemini agents** (all agents in this fleet except codex and Codex-primary ones):
+```yaml
+auxiliary:
+  session_search:
+    provider: auto
+    model: gemini-3.1-flash-lite-preview
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    api_key: <GOOGLE_GEMINI_KEY>
+    timeout: 30
+  compression:
+    provider: auto
+    model: gemini-3.1-flash-lite-preview
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    api_key: <GOOGLE_GEMINI_KEY>
+    timeout: 120
+  flush_memories:
+    provider: auto
+    model: gemini-3.1-flash-lite-preview
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    api_key: <GOOGLE_GEMINI_KEY>
+    timeout: 30
+```
+
+For codex-primary agents (codex agent), substitute `codex`'s own API key (`AIzaSyB8kzbUUgV0nFjZJ5X-WTic0_Am57l0pNg`).
+
+Note: `vision`, `web_extract`, `skills_hub`, `approval`, `mcp` can stay as `model: ''` since they have different auto-detect paths or are less latency-sensitive.
+
+**Applied scouts**: 29 (session_search), 30 (all 10 agents), 31 (compression), 32 (flush_memories), 35 (mark fix).
+
 ## L23: Dev AGENTS.md poisons production sessions via WorkingDirectory + missing TERMINAL_CWD (2026-04-20)
 
 All gateway LaunchAgents set `WorkingDirectory=/Users/hamzadiaz/.hermes/hermes-agent` (the repo). When `TERMINAL_CWD` is not set, `build_context_files_prompt(cwd=None)` falls back to `os.getcwd()` = the repo dir. The repo's `AGENTS.md` (developer docs advertising `terminal_tool.py`, `read_file`, `write_file`, etc.) is then injected into every production session's system prompt.

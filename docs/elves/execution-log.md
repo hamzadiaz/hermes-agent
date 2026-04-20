@@ -4,6 +4,42 @@
 
 ---
 
+## Scout 35 — mark auxiliary config fix + L24 learning (2026-04-20T10:30Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Audited mark's `config.yaml` auxiliary section: `compression.model` and `flush_memories.model` were `''` (empty) while `session_search` had the right model but no explicit base_url/api_key.
+- With empty model, `_resolve_auto()` uses `_try_custom_endpoint` with `_read_main_model()` = `gemini-3.1-pro-preview` (expensive) instead of flash-lite for compression/flush_memories.
+- With empty base_url/api_key on session_search, it relied on auto-detection finding the google-gemini custom provider — fragile if ordering changes.
+- Fix: Set all three (session_search, compression, flush_memories) to `gemini-3.1-flash-lite-preview` with explicit google-gemini base_url + api_key.
+- Added L24 to learnings.md: complete reference for auxiliary config standardization pattern across the fleet.
+- Test suite: **7425/7425 pass** ✅
+
+**Files changed:**
+- `~/.hermes-agents/mark/config.yaml` — explicit gemini-flash-lite for session_search, compression, flush_memories
+- `docs/elves/learnings.md` — added L24 (auxiliary config standardization pattern)
+
+---
+
+## Scout 34 — Broader systemic audit: skills_hub, vault health, error patterns (2026-04-20T10:00Z)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- `skills_hub` audit: not used as auxiliary LLM task in current codebase; `auxiliary.skills_hub` with empty model is fine.
+- Vault grade audit: overnight cron at 00:10 AM showed Grade D (stale — files hadn't been updated yet at that hour). Fresh vault audit after session's file updates shows **Grade A, score=0, issues=0**.
+- No remaining ERROR-level patterns found in gateway.error.log that weren't already addressed (external_process fix in Scout 33; earlier 404s are from old gateway).
+- Fleet health monitor: confirmed running and logging fresh entries (kick-started in Scout 30).
+- Test suite: 7425/7425 pass (carried from Scout 33).
+
+**Files changed:**
+- None (audit only; vault Grade A confirmed)
+
+---
+
 ## Scout 33 — Fix external_process WARNING noise in auxiliary_client (2026-04-20T09:50Z)
 
 **Duration:** ~20m
