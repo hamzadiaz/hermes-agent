@@ -44,6 +44,43 @@ class TestRegisterAndDispatch:
         result = json.loads(reg.dispatch("echo", {"msg": "hi"}))
         assert result == {"msg": "hi"}
 
+    def test_dispatch_none_args_treated_as_empty_dict(self):
+        """Regression: model can emit tool call with null args; dispatch must not crash."""
+        reg = ToolRegistry()
+        received = {}
+
+        def capture_handler(args, **kw):
+            received["args"] = args
+            return json.dumps({"ok": True})
+
+        reg.register(
+            name="null_args_tool",
+            toolset="core",
+            schema=_make_schema("null_args_tool"),
+            handler=capture_handler,
+        )
+        result = json.loads(reg.dispatch("null_args_tool", None))
+        assert result == {"ok": True}
+        assert received["args"] == {}
+
+    def test_dispatch_none_args_does_not_call_get_on_none(self):
+        """Ensure a handler that calls args.get() doesn't crash when args=None."""
+        reg = ToolRegistry()
+
+        def get_handler(args, **kw):
+            # This would crash with AttributeError if args is None
+            value = args.get("key", "default")
+            return json.dumps({"value": value})
+
+        reg.register(
+            name="get_tool",
+            toolset="core",
+            schema=_make_schema("get_tool"),
+            handler=get_handler,
+        )
+        result = json.loads(reg.dispatch("get_tool", None))
+        assert result == {"value": "default"}
+
 
 class TestGetDefinitions:
     def test_returns_openai_format(self):
