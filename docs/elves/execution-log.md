@@ -1714,3 +1714,20 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7849/7849 pass (+43 from Scout 69)
 
 **Commit:** cb6c1ba9 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 70 — 2026-04-20
+
+**Objective:** Coverage gaps — format helpers (insights + usage_pricing)
+
+**New file:** `tests/agent/test_format_helpers.py` — 30 tests
+
+### Functions covered:
+- `_bar_chart()` from insights.py: empty list, all-zero → empty strings, single value fills width, proportional scaling, non-zero small → ≥1 bar, correct count, default max_width=20
+- `format_duration_compact()` from usage_pricing.py: 0s, 45s, 59s, 1m, 2m, 1h, 1h 1m, 2h (no "0m"), 1.0d, 2.0d
+- `format_token_count_compact()` from usage_pricing.py: 0, sub-1K, 999, 1K, 1.5K, 10K, 100K, 1M, 1.5M, 1B, negative, trailing zeros stripped
+
+**Results:** 7879/7879 pass (+30 from Scout 70)
+
+**Commit:** 1a0cb36f — pushed to fork (hamzadiaz/hermes-agent)
