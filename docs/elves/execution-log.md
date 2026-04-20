@@ -40,6 +40,61 @@
 
 ---
 
+## Scout 84 — Broader exploratory scan: auxiliary_client + channel_directory + claude_code_client + hermes_time + agent_loop + feishu + display + gateway helpers (2026-04-20T~ongoing)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- `agent/auxiliary_client.py`: 4 pure helpers; added `tests/agent/test_auxiliary_client_helpers.py` (29 tests)
+  - `_pool_runtime_api_key()`: None→"", runtime_api_key attr, access_token fallback, whitespace stripped, both None→""
+  - `_pool_runtime_base_url()`: None→"", runtime/inference/base_url priority, trailing slash stripped, fallback param
+  - `_nous_api_key()`: agent_key preferred, access_token fallback, empty/None falls through, {} → ""
+  - `_normalize_vision_provider()`: None/empty→"auto", codex→openai-codex, main→custom, unknown→lowercased, whitespace stripped
+- `gateway/channel_directory.py`: 2 pure helpers; added `tests/gateway/test_channel_directory_helpers.py` (16 tests)
+  - `_session_entry_id()`: empty→None, no chat_id→None, str(chat_id), thread_id:combined, falsy thread_id not included
+  - `_session_entry_name()`: chat_name preferred, user_name fallback, str(chat_id) fallback, thread with/without topic
+- `agent/claude_code_client.py`: 6 pure helpers; added `tests/agent/test_claude_code_client_helpers.py` (57 tests)
+  - `_render_message_content()`: None/str/dict-text/dict-content/dict-fallback/list-text/list-mixed/coerce
+  - `_format_tools_for_prompt()`: None/empty→"[]", valid tools JSON, no-name skipped, non-dict skipped, required=None
+  - `_assistant_tool_xml()`: no calls→"", single/multiple, str-args parsed, invalid-args→{}, non-dict-args→{}
+  - `_extract_literal_strings()`: abs paths extracted, dedup, max 12, non-dict skipped
+  - `_map_native_tool_name()`: None/empty→"tool", Read/Write/Bash/Grep/Glob/etc mapped, playwright prefix stripped, unknown lowercased
+  - `_usage_from_payload()`: empty→0s, input+output parsed, total=sum, cache_read, None→0
+- `hermes_time.py`: 2 pure helpers; added `tests/test_hermes_time_helpers.py` (11 tests)
+  - `_get_zoneinfo()`: valid→ZoneInfo, invalid→None (warns), empty→None
+  - `_resolve_timezone_name()`: env var takes priority, stripped, empty falls through
+- `environments/agent_loop.py`: 1 pure helper; added `tests/environments/test_agent_loop_helpers.py` (12 tests)
+  - `_extract_reasoning_from_message()`: reasoning_content preferred, reasoning fallback, reasoning_details namespace/dict, empty falls through
+- `gateway/platforms/feishu.py`: 8 pure helpers; added `tests/gateway/test_feishu_pure_helpers.py` (59 tests)
+  - `_escape_markdown_text()`, `_to_boolean()`, `_is_style_enabled()`, `_wrap_inline_code()`, `_sanitize_fence_language()`
+  - `_render_text_element()`: bold/italic/strikethrough/underline/code styles applied
+  - `_render_code_block_element()`: fenced block, language, trailing newline normalization
+  - `_strip_markdown_to_plain_text()`: headings/bold/italic/code/links/underline all stripped
+- `agent/display.py`: 5 pure helpers; added `tests/agent/test_display_pure_helpers.py` (34 tests)
+  - `_oneline()`: whitespace collapsed, leading/trailing stripped
+  - `_result_succeeded()`: None/empty→False, success=True/False, error key→False, no success key + no error→True
+  - `_split_unified_diff_sections()`: empty→[], single/multi file splits, content preserved
+  - `_detect_tool_failure()`: terminal exit codes, memory-full pattern, generic error markers
+  - `_osc8_link()`: ESC sequences present, URL + text embedded, closing sequence
+- `hermes_cli/gateway.py`: 3 pure helpers; added `tests/hermes_cli/test_gateway_pure_helpers.py` (14 tests)
+  - `_service_scope_label()`: True→"system", False/default→"user"
+  - `_normalize_service_definition()`: trailing whitespace stripped per line, leading/trailing blank lines removed
+  - `_build_user_local_paths()`: existing dirs included, already-listed excluded, nonexistent excluded
+- Total: 264 net new tests; 8734/8734 pass ✅
+
+**Files changed:**
+- `tests/agent/test_auxiliary_client_helpers.py`: new file, 29 tests
+- `tests/gateway/test_channel_directory_helpers.py`: new file, 16 tests
+- `tests/agent/test_claude_code_client_helpers.py`: new file, 57 tests
+- `tests/test_hermes_time_helpers.py`: new file, 11 tests
+- `tests/environments/test_agent_loop_helpers.py`: new file, 12 tests
+- `tests/gateway/test_feishu_pure_helpers.py`: new file, 59 tests
+- `tests/agent/test_display_pure_helpers.py`: new file, 34 tests
+- `tests/hermes_cli/test_gateway_pure_helpers.py`: new file, 14 tests
+
+---
+
 ## Scout 80 — Broader exploratory scan: status.py + cron.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~10m
