@@ -4,6 +4,33 @@
 
 ---
 
+## Scout 91 — Broader exploratory scan: session + profiles + runtime_provider helpers (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `gateway/session.py`: NEW `tests/gateway/test_session_pure_helpers.py` (25 tests)
+  - `_hash_id()`: 12-char hex, deterministic, known SHA-256 truncation
+  - `_hash_sender_id()`: user_ prefix, 17-char total, uniqueness
+  - `_hash_chat_id()`: plain → hash, platform prefix preserved, colon-at-start edge case
+  - `_looks_like_phone()`: E.164 with spaces, plain digits, username/email/short rejected
+- `hermes_cli/profiles.py`: NEW `tests/hermes_cli/test_profiles_pure_helpers.py` (13 tests)
+  - `_normalize_profile_archive_parts()`: dotslash stripping, nested paths, Windows backslash, absolute/dotdot/empty raise ValueError (security)
+- `hermes_cli/runtime_provider.py`: extended `tests/hermes_cli/test_runtime_provider_helpers.py` (+9 tests, 38 total)
+  - `_auto_detect_local_model()`: empty/None/unreachable → ""
+  - `_copilot_runtime_api_mode()`: configured mode returned, empty model → chat_completions fallback
+- 9207/9207 pass (+47 net new from Scout 91)
+
+**Files changed:**
+- `tests/gateway/test_session_pure_helpers.py`: NEW, 25 tests
+- `tests/hermes_cli/test_profiles_pure_helpers.py`: NEW, 13 tests
+- `tests/hermes_cli/test_runtime_provider_helpers.py`: extended, +9 tests (38 total)
+
+**Commit:** 8238100d — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 90 — Broader exploratory scan: approval + email + wecom + telegram_network helpers (2026-04-20T~ongoing)
 
 **Duration:** ~20m
