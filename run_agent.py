@@ -2817,7 +2817,16 @@ class AIAgent:
             # mode).  The gateway process runs from the hermes-agent install
             # dir, so os.getcwd() would pick up the repo's AGENTS.md and
             # other dev files — inflating token usage by ~10k for no benefit.
-            _context_cwd = os.getenv("TERMINAL_CWD") or None
+            # Fall back to HERMES_HOME (user's config dir, no AGENTS.md) when
+            # TERMINAL_CWD is not set, rather than os.getcwd().  This prevents
+            # the repo's developer-facing AGENTS.md from being injected into
+            # production gateway sessions and falsely advertising Hermes tools
+            # that may not be available (e.g. in the claude_code_client path).
+            _context_cwd = (
+                os.getenv("TERMINAL_CWD")
+                or os.getenv("HERMES_HOME")
+                or None
+            )
             context_files_prompt = build_context_files_prompt(
                 cwd=_context_cwd, skip_soul=_soul_loaded)
             if context_files_prompt:
