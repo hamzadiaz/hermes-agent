@@ -40,6 +40,39 @@
 
 ---
 
+## Scout 85 — Broader exploratory scan: terminal_tool + mcp_config + skills_tool_setup + transcription + fuzzy_match helpers (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `tools/terminal_tool.py`: 2 uncovered helpers; added `tests/tools/test_terminal_tool_helpers.py` (11 tests)
+  - `_handle_sudo_failure()`: no-gateway→passthrough; gateway+sudo-failure→appends tip message
+  - `_transform_sudo_command()`: no sudo→unchanged+None; no password→unchanged; with password→sudo -S injected, stdin returned
+- `hermes_cli/mcp_config.py`: 2 uncovered helpers; added `tests/hermes_cli/test_mcp_config_helpers.py` (12 tests)
+  - `_unwrap_exception_group()`: plain exception passthrough, single/nested group unwrapped, non-Exception wrapped in RuntimeError
+  - `_interpolate_value()`: no placeholder→unchanged, env var substituted, missing→empty, multiple vars, empty string
+- `tools/skills_tool.py`: 2 uncovered helpers; added `tests/tools/test_skills_tool_setup_helpers.py` (20 tests)
+  - `_normalize_prerequisite_values()`: None/empty/False→[], string→list, items coerced, empty items filtered
+  - `_normalize_setup_metadata()`: no setup→defaults, help text/whitespace handling, collect_secrets list/dict, env_var required, provider_url optional
+- `tools/transcription_tools.py`: 2 uncovered helpers; added `tests/tools/test_transcription_helpers.py` (11 tests)
+  - `_safe_find_spec()`: stdlib→True, nonexistent→False, returns bool
+  - `_normalize_local_command_model()`: None/empty→default, OpenAI/Groq model→default, local name preserved
+- `tools/fuzzy_match.py`: 3 uncovered helpers; added `tests/tools/test_fuzzy_match_helpers.py` (22 tests)
+  - `_unicode_normalize()`: smart quotes, em/en dashes, ellipsis, nbsp all replaced
+  - `_apply_replacements()`: single/multiple/empty match replacement, position integrity
+  - `_strategy_exact()`: single/multiple/no matches, position accuracy
+- Total: 76 net new tests; 8810/8810 pass ✅
+
+**Files changed:**
+- `tests/tools/test_terminal_tool_helpers.py`: new file, 11 tests
+- `tests/hermes_cli/test_mcp_config_helpers.py`: new file, 12 tests
+- `tests/tools/test_skills_tool_setup_helpers.py`: new file, 20 tests
+- `tests/tools/test_transcription_helpers.py`: new file, 11 tests
+- `tests/tools/test_fuzzy_match_helpers.py`: new file, 22 tests
+
+---
+
 ## Scout 84 — Broader exploratory scan: auxiliary_client + channel_directory + claude_code_client + hermes_time + agent_loop + feishu + display + gateway helpers (2026-04-20T~ongoing)
 
 **Duration:** ~30m

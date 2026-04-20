@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 84 complete. Scout 85 next.
+Reason: Open-ended mode active. Scout 85 complete. Scout 86 next.
 ```
 
 ## Current Phase
-SCOUT 84 COMPLETE — auxiliary_client(29)+channel_directory(16)+claude_code_client(57)+hermes_time(11)+agent_loop(12)+feishu(59)+display(34)+gateway_helpers(14)=232 tests (net +264); 8734/8734 pass. Scout 85 next.
+SCOUT 85 COMPLETE — terminal_tool(11)+mcp_config(12)+skills_tool_setup(20)+transcription(11)+fuzzy_match(22)=76 tests; 8810/8810 pass. Scout 86 next.
 
 ## Next Exact Batch
-Scout 85: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 86: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -110,7 +110,8 @@ Scout 85: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 82** ✅ tool_call_parsers value deserializers (30 tests); 8420/8420 pass
 - **Scout 83** ✅ cli(20)+batch_runner(26)+run_agent(32)=78 tests; 8470/8470 pass
 - **Scout 84** ✅ auxiliary_client(29)+channel_directory(16)+claude_code_client(57)+hermes_time(11)+agent_loop(12)+feishu(59)+display(34)+gateway_helpers(14)=232 tests; 8734/8734 pass
-- **Scout 85** 🔄 Continue broader exploratory scan
+- **Scout 85** ✅ terminal_tool(11)+mcp_config(12)+skills_tool_setup(20)+transcription(11)+fuzzy_match(22)=76 tests; 8810/8810 pass
+- **Scout 86** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
