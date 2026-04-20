@@ -4,6 +4,42 @@
 
 ---
 
+## Scout 81 — Broader exploratory scan: web_tools + smart_model_routing + litert + copilot_acp helpers (2026-04-20T~ongoing)
+
+**Duration:** ~30m
+**Status:** Complete ✅
+
+**What happened:**
+- `tools/web_tools.py`: 4 untested pure helpers; added `tests/tools/test_web_tools_pure_helpers.py` (39 tests)
+  - `_to_plain_object()`: None passthrough, scalars as-is, model_dump() when available, __dict__ fallback (private excluded), unknown objects returned as-is
+  - `_normalize_result_list()`: non-list→[], dicts preserved, SDK objects via _to_plain_object, non-dict items excluded
+  - `_extract_web_search_results()`: data-list, data-dict.web, data-dict.results, top-level web, top-level results, SDK .web attribute
+  - `_extract_scrape_payload()`: data nested dict, flat dict, non-dict→{}, SDK via model_dump, data non-dict falls through
+- `agent/smart_model_routing.py`: 2 untested helpers; added `tests/agent/test_smart_model_routing_helpers.py` (35 tests)
+  - `_coerce_bool()`: truthy/falsy strings, None→default, bool passthrough
+  - `_coerce_int()`: int/string/float conversion, None/invalid→default
+  - `choose_cheap_model_route()`: disabled→None, simple→route, long/multiline/code/URL/keywords→None, custom thresholds
+- `agent/litert_lm_client.py`: 6 pure helpers; added `tests/agent/test_litert_lm_client_helpers.py` (50 tests)
+  - `_render_message_content()`: None/str/dict-text/dict-content/dict-json/list-text/list-mixed/coerce
+  - `_truncate_for_prompt()`: within limit unchanged, over limit→tail preserved, marker appended, empty unchanged
+  - `_format_tools_for_prompt()`: None/empty→"[]", valid tools, no-name excluded, non-dict excluded
+  - `_assistant_tool_xml()`: no calls→"", single/multiple calls, str-args parsed, invalid-args→{}, non-dict-args→{}
+  - `_extract_literal_strings()`: empty/None→[], absolute paths extracted, dedup, max 12
+  - `_usage_stub()`: empty→0 tokens, text→estimated tokens, total=completion, cached=0
+- `agent/copilot_acp_client.py`: 3 pure helpers; added `tests/agent/test_copilot_acp_client_helpers.py` (25 tests)
+  - `_jsonrpc_error()`: structure, None/string id, JSON-serializable
+  - `_render_message_content()`: same logic as litert variant, independently verified
+  - `_ensure_path_within_cwd()`: valid path accepted, relative→PermissionError, outside cwd→PermissionError, traversal blocked
+- 8367/8367 pass (113 net new tests from Scout 81)
+
+**Files changed:**
+- `tests/tools/test_web_tools_pure_helpers.py`: new file, 39 tests
+- `tests/agent/test_smart_model_routing_helpers.py`: new file, 35 tests
+- `tests/agent/test_litert_lm_client_helpers.py`: new file, 50 tests
+- `tests/agent/test_copilot_acp_client_helpers.py`: new file, 25 tests
+
+---
+
 ## Scout 80 — Broader exploratory scan: status.py + cron.py pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~10m
