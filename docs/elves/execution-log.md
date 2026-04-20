@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 22 — Full Dashboard Audit + System Health Check (2026-04-20T02:45Z)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- Mission Control: 11/11 running, 0 errors, 0 idle — confirmed `main` on claude-opus-4-7 ✅
+- Models page: all correct models — Gemini 3.1 Pro Preview for Gemini bots, GPT-5.4 for OpenAI, Sonnet 4.6 for Claude Code agents
+- Obsidian page: vault grade A — Agent Private layer updated 3m ago (our checkpoint worked)
+- Cron Jobs page: 3 active crons — vault audit ran tonight at 12:10 AM, vault rollover at 12:05 AM
+- Ralph page: 16 reviewers healthy, all using Gemini 3.1+
+- System page: 502 on `/api/system/overview` is pre-existing (Paperclip not running)
+- Ephemeral prompt (TOOL RUNTIME GUARANTEE) confirmed at position 2 in system prompt chain (after SOUL.md, before memory)
+- SOUL.md loading confirmed: `~/.hermes/SOUL.md` loaded via `load_soul_md()` at `get_hermes_home() / "SOUL.md"`
+- Obsidian working-context.md updated to reflect Scout 21 state
+
+**Result:** All dashboard pages healthy. No new issues found. System fully operational.
+
+---
+
 ## Scout 21 — Unit Test Coverage for Critical Fixes (2026-04-20T02:30Z)
 
 **Duration:** ~20m
