@@ -4,6 +4,28 @@
 
 ---
 
+## Scout 32 — flush_memories config for all agents + main hermes (2026-04-20T09:20Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- Main hermes gateway was routing flush_memories via Codex (gpt-5.4 at chatgpt.com/backend-api/codex/)
+- Flush_memories was working (3 successful flushes logged today) but routing through Codex unnecessarily
+- Updated `~/.hermes/config.yaml`: `auxiliary.flush_memories` now uses Gemini explicitly
+- Added `auxiliary.flush_memories` to all 9 agent configs:
+  - alex, codex, malik, buni, donch, claude: explicit base_url + api_key (Gemini)
+  - adonch, musa, redwan: model hint only (uses custom_providers auto-detection)
+- All 10 agents + main hermes now have explicit session_search, compression, flush_memories
+- Test suite: **7425/7425 pass** ✅
+
+**Files changed:**
+- `~/.hermes/config.yaml` — flush_memories now uses Gemini explicitly
+- `~/.hermes-agents/{alex,codex,malik,buni,donch,claude}/config.yaml` — added flush_memories
+- `~/.hermes-agents/{adonch,musa,redwan}/config.yaml` — added flush_memories
+
+---
+
 ## Scout 31 — Explicit compression config for all agents (2026-04-20T08:45Z)
 
 **Duration:** ~25m

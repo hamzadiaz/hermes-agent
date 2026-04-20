@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 31 complete. Scout 32 next.
+Reason: Open-ended mode active. Scout 32 complete. Scout 33 next.
 ```
 
 ## Current Phase
-SCOUT 31 COMPLETE — All 10 agents have explicit auxiliary.compression config (Gemini lite). 7425/7425 tests pass.
+SCOUT 32 COMPLETE — flush_memories Gemini config added to all agents + main hermes. 7425/7425 tests pass.
 
 ## Next Exact Batch
-Scout 32: Check flush_memories config; look for any remaining systemic improvements; broader scan
+Scout 33: Investigate unhandled auth_type warning + broader systemic audit
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -57,7 +57,8 @@ Scout 32: Check flush_memories config; look for any remaining systemic improveme
 - **Scout 29** ✅ auxiliary.session_search.model: gemini-3.1-flash-lite-preview added to adonch/musa/redwan configs; 7425/7425 pass
 - **Scout 30** ✅ Fleet monitor kick-started; session_search config added to all 10 agents; 7425/7425 pass
 - **Scout 31** ✅ Toolset audit clean; compression config added to all 9 remaining agents; 7425/7425 pass
-- **Scout 32** 🔄 flush_memories config + broader scan
+- **Scout 32** ✅ flush_memories Gemini config added to all agents + main hermes; 7425/7425 pass
+- **Scout 33** 🔄 unhandled auth_type warning investigation + broader systemic audit
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`
