@@ -1749,3 +1749,26 @@ for _tok in ("TELEGRAM_BOT_TOKEN", "DISCORD_BOT_TOKEN", "SLACK_BOT_TOKEN", "WHAT
 **Results:** 7891/7891 pass (+12 from Scout 71)
 
 **Commit:** fbe56cb7 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
+## Scout 72 — 2026-04-20
+
+**Objective:** Coverage gaps — models.py pure helpers
+
+**New file:** `tests/hermes_cli/test_models_pure_helpers.py` — 46 tests
+
+### Functions covered:
+- `normalize_provider()`: None/empty→"openrouter", whitespace→"" (truthy path), alias resolution (github→copilot, claude→anthropic, kimi→kimi-coding), uppercase normalization, unknown passthrough, "auto" passthrough
+- `provider_label()`: known provider label, alias resolves to label, "auto"→"Auto", unknown→original, None→"OpenRouter"
+- `_payload_items()`: list of dicts, non-dict items filtered, dict with "data" key unwrapped, dict without "data" key, None, empty
+- `_extract_model_ids()`: ID extraction, items without ID skipped, empty ID skipped, from {data: [...]}
+- `_copilot_catalog_item_is_text_model()`: no/empty ID→False, model_picker_enabled=False→False, non-chat capabilities type→False, unsupported endpoint only→False, chat_completions/responses endpoint→True
+- `_is_github_models_base_url()`: Copilot URL, Copilot with path, GitHub AI inference URL, other URL→False, None/empty→False, trailing slash stripped
+
+### Fix:
+- `test_whitespace_defaults_to_openrouter` was wrong — whitespace-only is truthy, so the `or "openrouter"` branch doesn't activate; strips to `""`. Updated assertion to `""` and clarified with docstring.
+
+**Results:** 7937/7937 pass (+46 from Scout 72)
+
+**Commit:** f0cdca48 — pushed to fork (hamzadiaz/hermes-agent)
