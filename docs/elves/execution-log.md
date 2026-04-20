@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 24 — Gateway Architecture + Error Log Audit (2026-04-20T04:00Z)
+
+**Duration:** ~25m
+**Status:** Complete ✅
+
+**What happened:**
+- Investigated two suspected duplicate gateway processes
+- **Key finding**: Architecture is 1 main gateway + 10 independent agent gateways (each with own HERMES_HOME under `~/.hermes-agents/<name>/`), managed by 11 separate LaunchAgents — this is correct and expected
+- Old processes (40109-40134) were the previous agent set. Killing them triggered LaunchAgent restarts → all 10 agents restarted simultaneously (924-941 group); no action needed
+- Only PID 57937 is the main gateway (HERMES_HOME=~/.hermes, port 8644)
+- **gemini-3.1-flash 404 errors**: Traced to `gateway.error.log` last-modified 01:14AM (before current gateway started 01:55AM). Errors are from OLD gateway, not current run. Current gateway error log is clean.
+- Main config correctly uses `gemini-3.1-flash-lite-preview` for both session_search and compression
+- `unhandled auth_type external_process for claude-code` warning: benign — falls through to other providers in auto chain
+- atlas-dashboard hardening from previous sub-session confirmed: atomic writes + port conflict detection + delete button + obsidian error handling, all committed
+- No code changes needed in this scout
+
+**Result:** Gateway architecture understood; errors are historical not current; all 11 processes healthy.
+
+---
+
 ## Scout 23 — Telegram Reconnect Audit + Flaky Test Fix (2026-04-20T03:30Z)
 
 **Duration:** ~30m
