@@ -4,6 +4,36 @@
 
 ---
 
+## Scout 90 — Broader exploratory scan: approval + email + wecom + telegram_network helpers (2026-04-20T~ongoing)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `tools/approval.py`: NEW `tests/tools/test_approval_pure_helpers.py` (26 tests)
+  - `_legacy_pattern_key()`: word-boundary split vs 20-char truncation
+  - `_normalize_approval_mode()`: YAML bool coercion (False→"off", True→"manual"), string normalization
+  - `_format_tirith_description()`: empty/None findings→summary fallback, single/multiple findings, no-title fallback
+- `gateway/platforms/email.py`: NEW `tests/gateway/test_email_pure_helpers.py` (21 tests)
+  - `_is_automated_sender()`: noreply/no-reply/bounce patterns, Precedence bulk/list/junk, Auto-Submitted header, List-Unsubscribe, case-insensitive, empty headers
+- `gateway/platforms/wecom.py`: NEW `tests/gateway/test_wecom_pure_helpers.py` (31 tests)
+  - `_coerce_list()`: None/string/list/tuple/int inputs, comma-split, empty filtering
+  - `_normalize_entry()`: wecom:/user:/group: prefix stripping, case-insensitive, wildcard
+  - `_entry_matches()`: exact/case-insensitive/wildcard match, partial non-match
+- `gateway/platforms/telegram_network.py`: extended `tests/gateway/test_telegram_network.py` (+6 tests)
+  - `_is_retryable_connect_error()`: ConnectTimeout/ConnectError→True; ReadTimeout/ValueError/HTTPStatusError→False
+- 9160/9160 pass (+84 net new from Scout 90)
+
+**Files changed:**
+- `tests/tools/test_approval_pure_helpers.py`: NEW, 26 tests
+- `tests/gateway/test_email_pure_helpers.py`: NEW, 21 tests
+- `tests/gateway/test_wecom_pure_helpers.py`: NEW, 31 tests
+- `tests/gateway/test_telegram_network.py`: extended, +6 tests (51 total)
+
+**Commit:** fe811db4 — pushed to fork (hamzadiaz/hermes-agent)
+
+---
+
 ## Scout 89 — Broader exploratory scan: gateway/run text helpers + feishu text/node helpers (2026-04-20T~ongoing)
 
 **Duration:** ~20m
