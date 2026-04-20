@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 79 — Broader exploratory scan: nous_subscription.py pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~10m
+**Status:** Complete ✅
+
+**What happened:**
+- `hermes_cli/nous_subscription.py` had pure helpers with no tests
+- Added `tests/hermes_cli/test_nous_subscription_helpers.py` with 31 tests covering:
+  - `_model_config_dict()`: dict→copy, string→{default:...}, whitespace→{}, None/missing→{}
+  - `_browser_label()`: browserbase/browser-use/camofox/local → labels, unknown passthrough, None/empty → default
+  - `_tts_label()`: openai/elevenlabs/edge/neutts → labels, unknown passthrough, None/empty → default
+  - `_resolve_browser_feature_state()`: direct_camofox wins all, explicit browserbase/browser-use/camofox, managed_browser auto-select, local fallback, unavailable when local not available
+- 8220/8220 pass
+
+**Files changed:**
+- `tests/hermes_cli/test_nous_subscription_helpers.py`: new file, 31 tests
+
+---
+
 ## Scout 78 — Broader exploratory scan: auth_commands pure helper tests (2026-04-20T~ongoing)
 
 **Duration:** ~10m
