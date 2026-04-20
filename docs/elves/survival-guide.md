@@ -18,14 +18,14 @@ Stabilize Hermes so every agent, across every provider path, correctly:
 ## Stop Gate
 ```
 Stop allowed right now: no
-Reason: Open-ended mode active. Scout 58 complete. Scout 59 next.
+Reason: Open-ended mode active. Scout 59 complete. Scout 60 next.
 ```
 
 ## Current Phase
-SCOUT 58 COMPLETE — xdist pre-import fix extended to tests/acp/ (2 files); extract_content_or_reasoning empty-choices guard added; 7444/7444 pass. Scout 59 next: broader exploratory scan continues.
+SCOUT 59 COMPLETE — obsidian_tool.py 22 tests added (was 0); 7466/7466 pass. Scout 60 next: broader exploratory scan continues.
 
 ## Next Exact Batch
-Scout 59: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
+Scout 60: Continue broader exploratory scan — any remaining bugs, coverage gaps, or quality improvements not yet addressed
 
 ## Batch Plan
 - **Batch 0** ✅ Session setup, plan read
@@ -84,7 +84,8 @@ Scout 59: Continue broader exploratory scan — any remaining bugs, coverage gap
 - **Scout 56** ✅ Acceptance criteria audit: 3/7 code-verified; 2/7 need live test; 2/7 need human action; 7440/7440
 - **Scout 57** ✅ 3 recency injection edge-case tests added; 7443/7443 pass
 - **Scout 58** ✅ xdist fix extended (tests/acp/); empty-choices guard; 7444/7444 pass
-- **Scout 59** 🔄 Continue broader exploratory scan
+- **Scout 59** ✅ obsidian_tool 22 tests added (was 0); 7466/7466 pass
+- **Scout 60** 🔄 Continue broader exploratory scan
 
 ## Key Paths
 - Hermes repo: `/Users/hamzadiaz/.hermes/hermes-agent/`

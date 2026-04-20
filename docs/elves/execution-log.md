@@ -4,6 +4,25 @@
 
 ---
 
+## Scout 59 — Broader exploratory scan: obsidian_tool tests (2026-04-20T~11:00Z)
+
+**Duration:** ~20m
+**Status:** Complete ✅
+
+**What happened:**
+- `obsidian_tool.py` (255 lines, created Scout 12) had zero test coverage
+- Added `tests/tools/test_obsidian_tool.py` with 22 tests covering:
+  - `_get_vault_agent_name()`: 8 tests (all agent name mappings, unknown agent, dot-prefix stripping, exception path)
+  - `_run_vault_cmd()`: 5 tests (missing script, success, failure, timeout, generic exception)
+  - `obsidian_checkpoint()`: 4 tests (no agent, explicit override, run_vault_cmd failure, success)
+  - `obsidian_update_working_context()`: 5 tests (no agent, write success, checkpoint log preservation, directory creation, OS error)
+- 7466/7466 pass (up from 7444).
+
+**Files changed:**
+- `tests/tools/test_obsidian_tool.py`: new file, 22 tests
+
+---
+
 ## Scout 58 — Broader exploratory scan: xdist fix extended + empty-choices guard (2026-04-20T~10:30Z)
 
 **Duration:** ~25m
