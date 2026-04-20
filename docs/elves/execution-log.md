@@ -4,6 +4,26 @@
 
 ---
 
+## Scout 73 — Broader exploratory scan: hermes_cli/config.py pure helper tests (2026-04-20T~ongoing)
+
+**Duration:** ~15m
+**Status:** Complete ✅
+
+**What happened:**
+- 4 pure helper functions in `hermes_cli/config.py` had zero test coverage: `_deep_merge`, `_expand_env_vars`, `_normalize_root_model_keys`, `_normalize_max_turns_config`
+- Added `tests/hermes_cli/test_config_helpers.py` with 44 tests covering:
+  - `_deep_merge()`: empty base/override, scalar override wins, nested dict recursion, no mutation of inputs, override dict replaces scalar and vice versa
+  - `_expand_env_vars()`: string `${VAR}` expansion (set/unset), multi-var, dict value recursion (keys not expanded), list recursion, non-string passthrough, no-brace `$VAR` not touched
+  - `_normalize_root_model_keys()`: root provider/base_url migration, no override of existing model.provider/model.base_url, string model wrapped in dict, empty/falsy root not migrated, input not mutated
+  - `_normalize_max_turns_config()`: root max_turns migrated to agent, no override of existing agent.max_turns, default applied when absent, null agent treated as empty dict, root key removed
+- 1 pre-existing xdist flaky test (test_terminal_tool_requirements.py); passes in isolation; unrelated to changes
+- 7981/7981 net total (7980 pass under xdist; pre-existing flake)
+
+**Files changed:**
+- `tests/hermes_cli/test_config_helpers.py`: new file, 44 tests
+
+---
+
 ## Scout 64 — Broader exploratory scan: auth.py pure helper tests (2026-04-20T~12:55Z)
 
 **Duration:** ~20m
